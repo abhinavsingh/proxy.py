@@ -21,7 +21,7 @@ from ..common_neon.gas_price_calculator import GasPriceCalculator
 from ..common_neon.elf_params import ElfParams
 from ..common_neon.environment_utils import neon_cli
 from ..common_neon.environment_data import SOLANA_URL, PP_SOLANA_URL, USE_EARLIEST_BLOCK_IF_0_PASSED
-from ..common_neon.environment_data import PYTH_MAPPING_ACCOUNT
+from ..common_neon.environment_data import PYTH_MAPPING_ACCOUNT, RETRY_ON_FAIL
 from ..common_neon.transaction_validator import NeonTxValidator
 from ..indexer.indexer_db import IndexerDB
 from ..statistics_exporter.proxy_metrics_interface import StatisticsExporter
@@ -394,14 +394,16 @@ class NeonRpcApiWorker:
                 req_id = LogMng.get_logging_context().get("req_id")
                 pending_tx_nonce = self._mempool_client.get_pending_tx_nonce(req_id=req_id, sender=account)
                 self.debug(f"Pending tx count for: {account} - is: {pending_tx_nonce}")
-                if pending_tx_nonce != 0:
+                if pending_tx_nonce is None:
+                    pending_tx_nonce = 0
+                else:
                     pending_tx_nonce += 1
 
                 neon_account_info = self._solana.get_neon_account_info(account, 'processed')
-                tx_count = max(neon_account_info.trx_count, pending_tx_nonce)
+                tx_count = max(neon_account_info.tx_count, pending_tx_nonce)
             else:
                 neon_account_info = self._solana.get_neon_account_info(account, 'confirmed')
-                tx_count = neon_account_info.trx_count
+                tx_count = neon_account_info.tx_count
 
             return hex(tx_count)
         except (Exception,):
@@ -501,30 +503,45 @@ class NeonRpcApiWorker:
         except (Exception,):
             raise InvalidParamError(message="wrong transaction format")
 
+        neon_sender = '0x' + neon_tx.sender()
         neon_signature = '0x' + neon_tx.hash_signed().hex()
         self.debug(f"sendRawTransaction {neon_signature}: {json.dumps(neon_tx.as_dict(), cls=JsonEncoder)}")
 
         self._stat_tx_begin()
         try:
             min_gas_price = self.gas_price_calculator.get_min_gas_price()
-            account_tx_cnt = self.eth_getTransactionCount('0x' + neon_tx.sender(), 'pending')
-            neon_tx_validator = NeonTxValidator(self._solana, neon_tx, min_gas_price, int(account_tx_cnt, 16))
+            neon_tx_validator = NeonTxValidator(self._solana, neon_tx, min_gas_price)
             neon_tx_exec_cfg = neon_tx_validator.precheck()
 
-            self._stat_tx_success()
             req_id = LogMng.get_logging_context().get("req_id")
 
-            result: MPSendTxResult = self._mempool_client.send_raw_transaction(
-                req_id=req_id, signature=neon_signature, neon_tx=neon_tx,
-                neon_tx_exec_cfg=neon_tx_exec_cfg
-            )
+            sender_tx_cnt = 0
+            result: Optional[MPSendTxResult] = None
+            for i in range(2):
+                neon_account_info = self._solana.get_neon_account_info(neon_sender, commitment='processed')
+                sender_tx_cnt = neon_account_info.tx_count if neon_account_info is not None else 0
+                neon_tx_validator.prevalidate_tx_nonce(sender_tx_cnt)
+                if (result is not None) and (sender_tx_cnt != neon_tx.nonce):
+                    result.last_nonce = None
+                    break
+
+                result: MPSendTxResult = self._mempool_client.send_raw_transaction(
+                    req_id=req_id, signature=neon_signature, neon_tx=neon_tx, sender_tx_cnt=sender_tx_cnt,
+                    neon_tx_exec_cfg=neon_tx_exec_cfg
+                )
+                if result.success or (result.last_nonce != -1):
+                    break
 
             if result.success:
+                self._stat_tx_success()
                 return neon_signature
             else:
-                neon_tx_validator.raise_nonce_error(result.last_nonce + 1, neon_tx.nonce)
+                if result.last_nonce is not None:
+                    sender_tx_cnt = result.last_nonce + 1
+                neon_tx_validator.raise_nonce_error(sender_tx_cnt, neon_tx.nonce)
 
         except EthereumError:
+            self._stat_tx_failed()
             raise
 
         except Exception as err:

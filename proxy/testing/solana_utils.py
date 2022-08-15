@@ -441,7 +441,7 @@ ACCOUNT_INFO_LAYOUT = cStruct(
     "type" / Int8ul,
     "ether" / Bytes(20),
     "nonce" / Int8ul,
-    "trx_count" / Bytes(8),
+    "tx_count" / Bytes(8),
     "balance" / Bytes(32),
     "code_account" / Bytes(32),
     "is_rw_blocked" / Int8ul,
@@ -451,13 +451,13 @@ ACCOUNT_INFO_LAYOUT = cStruct(
 
 class AccountInfo(NamedTuple):
     ether: eth_keys.PublicKey
-    trx_count: int
+    tx_count: int
     code_account: PublicKey
 
     @staticmethod
     def frombytes(data: bytes):
         cont = ACCOUNT_INFO_LAYOUT.parse(data)
-        return AccountInfo(cont.ether, cont.trx_count, PublicKey(cont.code_account))
+        return AccountInfo(cont.ether, cont.tx_count, PublicKey(cont.code_account))
 
 
 def getAccountData(client: Client, account: Union[str, PublicKey], expected_length: int) -> bytes:
@@ -475,7 +475,7 @@ def getAccountData(client: Client, account: Union[str, PublicKey], expected_leng
 def getTransactionCount(client: Client, sol_account: Union[str, PublicKey]) -> int:
     info = getAccountData(client, sol_account, ACCOUNT_INFO_LAYOUT.sizeof())
     acc_info = AccountInfo.frombytes(info)
-    res = int.from_bytes(acc_info.trx_count, 'little')
+    res = int.from_bytes(acc_info.tx_count, 'little')
     print('getTransactionCount {}: {}'.format(sol_account, res))
     return res
 

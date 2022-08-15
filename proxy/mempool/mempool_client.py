@@ -62,10 +62,10 @@ class MemPoolClient:
 
     @_guard_conn
     @_reconnecting
-    def send_raw_transaction(self, req_id: str, signature: str, neon_tx: NeonTx,
+    def send_raw_transaction(self, req_id: str, signature: str, neon_tx: NeonTx, sender_tx_cnt: int,
                              neon_tx_exec_cfg: NeonTxExecCfg) -> MPSendTxResult:
         mempool_tx_request = MPTxRequest(
-            req_id=req_id, signature=signature, neon_tx=neon_tx,
+            req_id=req_id, signature=signature, neon_tx=neon_tx, sender_tx_cnt=sender_tx_cnt,
             neon_tx_exec_cfg=neon_tx_exec_cfg
         )
         return self._pickable_data_client.send_data(mempool_tx_request)

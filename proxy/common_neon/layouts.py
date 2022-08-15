@@ -22,7 +22,7 @@ ACCOUNT_INFO_LAYOUT = Struct(
     "type" / Int8ul,
     "ether" / Bytes(20),
     "nonce" / Int8ul,
-    "trx_count" / Bytes(8),
+    "tx_count" / Bytes(8),
     "balance" / Bytes(32),
     "code_account" / Bytes(32),
     "is_rw_blocked" / Int8ul,

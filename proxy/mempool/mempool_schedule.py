@@ -73,7 +73,10 @@ class MPSenderTxPool:
                 return MPSendTxResult(success=True, last_nonce=last_nonce)
             return MPSendTxResult(success=False, last_nonce=last_nonce)
 
-        if (last_nonce != 0) and (mp_tx_request.nonce != last_nonce + 1):
+        if (last_nonce is not None) and (mp_tx_request.nonce != last_nonce + 1):
+            return MPSendTxResult(success=False, last_nonce=last_nonce)
+
+        if (last_nonce is None) and (mp_tx_request.nonce != mp_tx_request.sender_tx_cnt):
             return MPSendTxResult(success=False, last_nonce=last_nonce)
 
         self._tx_list.insert(index, mp_tx_request)
@@ -93,9 +96,9 @@ class MPSenderTxPool:
     def len(self) -> int:
         return len(self._tx_list)
 
-    def last_nonce(self) -> int:
+    def last_nonce(self) -> Optional[int]:
         if self.len() == 0:
-            return 0
+            return None
         return self._tx_list[-1].nonce
 
     def first_tx_gas_price(self):
@@ -261,7 +264,7 @@ class MPTxSchedule:
 
     def get_pending_tx_nonce(self, sender_addr: str) -> int:
         sender, _ = self._get_sender_txs(sender_addr)
-        return 0 if sender is None else sender.last_nonce()
+        return None if sender is None else sender.last_nonce()
 
     def get_pending_tx_by_hash(self, tx_hash: str) -> Optional[NeonTx]:
         tx = self._tx_dict.get(tx_hash)

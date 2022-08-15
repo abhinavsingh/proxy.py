@@ -12,7 +12,6 @@ from web3.types import TxReceipt
 from .testing_helpers import create_account, create_signer_account, request_airdrop, SolidityContractDeployer, test_timeout
 
 
-EXTRA_GAS = int(os.environ.get("EXTRA_GAS", "0"))
 proxy_url = os.environ.get('PROXY_URL', 'http://localhost:9090/solana')
 proxy = Web3(Web3.HTTPProvider(proxy_url))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
@@ -609,6 +608,53 @@ class TestDistributorContract(unittest.TestCase):
         web3 = deployer.web3
         contract = deployer.from_file("./proxy/testing/solidity_contracts/NeonDistributor.sol", signer)
         return contract, web3
+
+
+@logged_group("neon.TestCases")
+class TestNonce(unittest.TestCase):
+    TRANSFER_CNT = 25
+
+    def setUp(self) -> None:
+        self.signer = create_signer_account()
+        self.receiver = proxy.eth.account.create('nonce-receiver-25')
+
+    def _get_tranfer_tx(self, nonce: int):
+        return proxy.eth.account.sign_transaction(
+            dict(
+                nonce=nonce,
+                chainId=proxy.eth.chain_id,
+                gas=987654321,
+                gasPrice=1000000000,
+                to=self.receiver.address,
+                value=1
+            ),
+            self.signer.key
+        )
+
+    def test_get_receipt_sequence(self):
+        tx_hash_list = []
+        for i in range(self.TRANSFER_CNT):
+            nonce = proxy.eth.get_transaction_count(self.signer.address, "pending")
+            tx_transfer = self._get_tranfer_tx(nonce)
+            tx_hash = proxy.eth.send_raw_transaction(tx_transfer.rawTransaction)
+            tx_hash_list.append(tx_hash)
+
+        for tx_hash in tx_hash_list:
+            tx_receipt = proxy.eth.wait_for_transaction_receipt(tx_hash)
+            self.assertEqual(tx_receipt.status, 1)
+
+    def test_mono_sequence(self):
+        nonce = proxy.eth.get_transaction_count(self.signer.address, "pending")
+        tx_hash_list = []
+        for i in range(self.TRANSFER_CNT):
+            tx_transfer = self._get_tranfer_tx(nonce)
+            nonce += 1
+            tx_hash = proxy.eth.send_raw_transaction(tx_transfer.rawTransaction)
+            tx_hash_list.append(tx_hash)
+
+        for tx_hash in tx_hash_list:
+            tx_receipt = proxy.eth.wait_for_transaction_receipt(tx_hash)
+            self.assertEqual(tx_receipt.status, 1)
 
 
 if __name__ == '__main__':

@@ -33,7 +33,7 @@ def get_transfer_mp_request(*, req_id: str, nonce: int, gas: int, gasPrice: int,
     )
     signature = signed_tx_data.hash.hex()
     neon_tx = NeonTx.fromString(bytearray(signed_tx_data.rawTransaction))
-    mp_tx_request = MPTxRequest(req_id=req_id, signature=signature, neon_tx=neon_tx)
+    mp_tx_request = MPTxRequest(req_id=req_id, signature=signature, neon_tx=neon_tx, sender_tx_cnt=nonce)
     return mp_tx_request
 
 

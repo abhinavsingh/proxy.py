@@ -41,7 +41,7 @@ class NeonAccountInfo(NamedTuple):
     pda_address: PublicKey
     ether: str
     nonce: int
-    trx_count: int
+    tx_count: int
     balance: int
     code_account: Optional[PublicKey]
     is_rw_blocked: bool
@@ -59,7 +59,7 @@ class NeonAccountInfo(NamedTuple):
             pda_address=pda_address,
             ether=cont.ether.hex(),
             nonce=cont.nonce,
-            trx_count=int.from_bytes(cont.trx_count, "little"),
+            tx_count=int.from_bytes(cont.tx_count, "little"),
             balance=int.from_bytes(cont.balance, "little"),
             code_account=code_account,
             is_rw_blocked=(cont.is_rw_blocked != 0),

@@ -21,13 +21,12 @@ class NeonTxValidator:
     MAX_U64 = pow(2, 64)
     MAX_U256 = pow(2, 256)
 
-    def __init__(self, solana: SolanaInteractor, tx: EthTx, min_gas_price: int, account_tx_cnt: int):
+    def __init__(self, solana: SolanaInteractor, tx: EthTx, min_gas_price: int):
         self._solana = solana
         self._tx = tx
 
         self._sender = '0x' + tx.sender()
         self._neon_account_info = self._solana.get_neon_account_info(EthereumAddress(self._sender))
-        self._account_tx_cnt = account_tx_cnt
 
         self._deployed_contract = tx.contract()
         if self._deployed_contract:
@@ -72,7 +71,6 @@ class NeonTxValidator:
 
     def _prevalidate_tx(self):
         self._prevalidate_whitelist()
-        self._prevalidate_tx_nonce()
         self._prevalidate_sender_eoa()
         self._prevalidate_tx_gas()
         self._prevalidate_tx_chain_id()
@@ -122,13 +120,13 @@ class NeonTxValidator:
         if len(self._tx.callData) > (128 * 1024 - 1024):
             raise EthereumError(message='transaction size is too big')
 
-    def _prevalidate_tx_nonce(self):
+    def prevalidate_tx_nonce(self, sender_tx_cnt: int):
         tx_nonce = int(self._tx.nonce)
-        if self.MAX_U64 not in (self._account_tx_cnt, tx_nonce):
-            if tx_nonce == self._account_tx_cnt:
-                return
-
-        self.raise_nonce_error(self._account_tx_cnt, tx_nonce)
+        if self.MAX_U64 in (sender_tx_cnt, tx_nonce):
+            raise EthereumError(
+                code=-32002,
+                message=f'nonce has max value: address {self._sender}, tx: {tx_nonce} state: {sender_tx_cnt}'
+            )
 
     def _prevalidate_sender_eoa(self):
         if not self._neon_account_info:
@@ -193,12 +191,12 @@ class NeonTxValidator:
                                     f"requests a size increase to more than 9.5Mb")
 
     def raise_nonce_error(self, account_tx_count: int, tx_nonce: int):
-        if self.MAX_U64 in (account_tx_count, tx_nonce):
-            message = 'nonce has max value'
-        elif account_tx_count > tx_nonce:
+        if account_tx_count > tx_nonce:
             message = 'nonce too low'
         else:
             message = 'nonce too high'
 
-        raise EthereumError(code=-32002,
-                            message=f'{message}: address {self._sender}, tx: {tx_nonce} state: {account_tx_count}')
+        raise EthereumError(
+            code=-32002,
+            message=f'{message}: address {self._sender}, tx: {tx_nonce} state: {account_tx_count}'
+        )

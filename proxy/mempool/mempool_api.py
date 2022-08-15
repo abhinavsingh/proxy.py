@@ -45,12 +45,13 @@ class MPRequest:
 
 @dataclass(eq=True, order=True)
 class MPTxRequest(MPRequest):
-    nonce: int = field(compare=True, default=None)
-    signature: str = field(compare=False, default=None)
-    neon_tx: NeonTx = field(compare=False, default=None)
+    nonce: Optional[int] = field(compare=True, default=None)
+    signature: Optional[str] = field(compare=False, default=None)
+    neon_tx: Optional[NeonTx] = field(compare=False, default=None)
     neon_tx_exec_cfg: Optional[NeonTxExecCfg] = field(compare=False, default=None)
-    sender_address: str = field(compare=False, default=None)
-    gas_price: int = field(compare=False, default=None)
+    sender_address: Optional[str] = field(compare=False, default=None)
+    sender_tx_cnt: Optional[int] = field(compare=False, default=None)
+    gas_price: Optional[int] = field(compare=False, default=None)
 
     def __post_init__(self):
         self.gas_price = self.neon_tx.gasPrice
@@ -94,4 +95,4 @@ class MPTxResult:
 @dataclass
 class MPSendTxResult:
     success: bool
-    last_nonce: int
+    last_nonce: Optional[int]
