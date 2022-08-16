@@ -136,6 +136,18 @@ class NeonIxBuilder:
             data=create_account_with_seed_layout(self.operator_account, seed_str, lamports, space)
         )
 
+    def create_refund_instruction(self, refunded_account: PublicKey, seed: bytes) -> TransactionInstruction:
+        seed_str = str(seed, 'utf8')
+        self.debug(f"createRefundTrx {self.operator_account} refunded account({refunded_account}) seed({seed_str})")
+        return TransactionInstruction(
+            keys=[
+                AccountMeta(pubkey=refunded_account, is_signer=False, is_writable=True),
+                AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
+            ],
+            program_id=EVM_LOADER_ID,
+            data=bytearray.fromhex("10") + seed,
+        )
+
     def make_create_eth_account_instruction(self, eth_address: EthereumAddress, code_acc=None) -> TransactionInstruction:
         if isinstance(eth_address, str):
             eth_address = EthereumAddress(eth_address)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import os
 import base58
+import sha3
 
 from typing import Optional, Dict, Any
 from logged_groups import logged_group
@@ -173,3 +174,45 @@ class NeonResizeContractTxStage(NeonCreateAccountWithSeedStage):
 
         self.tx.add(self._create_account_with_seed())
         self.tx.add(self._resize_account())
+
+
+class NeonCreatePermAccountStage(NeonCreateAccountWithSeedStage):
+    NAME = 'createPermAccount'
+
+    def __init__(self, builder: NeonIxBuilder, seed_base: bytes, size: int):
+        super().__init__(builder)
+        self._seed_base = seed_base
+        self._size = size
+        self._init_sol_account()
+
+    def _init_sol_account(self):
+        assert len(self._seed_base) > 0
+        seed = sha3.keccak_256(self._seed_base).hexdigest()[:32]
+        self._seed = bytes(seed, 'utf8')
+        self._sol_account = accountWithSeed(bytes(self._builder.operator_account), self._seed)
+
+    def get_seed(self):
+        return self._seed_base
+
+    def build(self):
+        assert self._is_empty()
+
+        self.debug(f'Create perm account {self.sol_account}')
+        self.tx.add(self._create_account_with_seed())
+
+
+@logged_group("neon.Proxy")
+class NeonDeletePermAccountStage(NeonCreatePermAccountStage):
+    NAME = 'refundPermAccount'
+
+    def __init__(self, builder: NeonIxBuilder, seed_base: bytes):
+        NeonCreatePermAccountStage.__init__(self, builder, seed_base, 0)
+
+    def _delete_account(self):
+        return self._builder.create_refund_instruction(self.sol_account, self._seed)
+
+    def build(self):
+        assert self._is_empty()
+
+        self.debug(f'Refund perm account {self.sol_account}')
+        self.tx.add(self._delete_account())
