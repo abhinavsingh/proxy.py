@@ -21,13 +21,14 @@ from typing import Dict, Union, Any, List, NamedTuple, Optional, Tuple, cast
 from base58 import b58decode, b58encode
 
 from .utils import SolanaBlockInfo
-from .environment_data import EVM_LOADER_ID, RETRY_ON_FAIL, FUZZING_BLOCKHASH, FINALIZED
+from .environment_data import EVM_LOADER_ID, RETRY_ON_FAIL, FUZZING_BLOCKHASH
 
 from ..common_neon.layouts import ACCOUNT_INFO_LAYOUT, CODE_ACCOUNT_INFO_LAYOUT, STORAGE_ACCOUNT_INFO_LAYOUT
 from ..common_neon.layouts import ACCOUNT_LOOKUP_TABLE_LAYOUT
 from ..common_neon.constants import CONTRACT_ACCOUNT_TAG, ACTIVE_STORAGE_TAG, NEON_ACCOUNT_TAG, LOOKUP_ACCOUNT_TAG
 from ..common_neon.address import EthereumAddress, ether2program
 from ..common_neon.utils import get_from_dict
+from ..common_neon.errors import SolanaUnavailableError
 
 
 class AccountInfo(NamedTuple):
@@ -222,7 +223,7 @@ class SolanaInteractor:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.error(f'Connection exception({retry}) on send request to Solana. Retry {retry}' +
                            f'Type(err): {type(err)}, Error: {str_err}, Traceback: {err_tb}')
-                raise Exception(str_err)
+                raise SolanaUnavailableError(str_err)
 
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))

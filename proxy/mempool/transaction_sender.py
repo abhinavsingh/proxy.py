@@ -19,7 +19,8 @@ from ..common_neon.compute_budget import TransactionWithComputeBudget
 from ..common_neon.emulator_interactor import call_trx_emulated
 from ..common_neon.neon_instruction import NeonIxBuilder
 from ..common_neon.solana_interactor import SolanaInteractor
-from ..common_neon.solana_tx_list_sender import BlockedAccountsError, SolTxListInfo, SolTxListSender
+from ..common_neon.errors import BlockedAccountsError, NodeBehindError, SolanaUnavailableError
+from ..common_neon.solana_tx_list_sender import SolTxListInfo, SolTxListSender
 from ..common_neon.solana_receipt_parser import SolTxError, SolReceiptParser
 from ..common_neon.solana_neon_tx_receipt import SolTxMetaInfo, SolTxReceiptInfo
 from ..common_neon.eth_proto import Trx as NeonTx
@@ -450,7 +451,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
 
         if len(self._node_behind_list):
             self.warning(f'Node is behind by {self._slots_behind} slots')
-            time.sleep(1)
+            raise NodeBehindError()
 
         # Unknown error happens - cancel the transaction
         if self._unknown_error_receipt is not None:
@@ -480,7 +481,7 @@ class IterativeNeonTxSender(SimpleNeonTxSender):
             time.sleep(self.ONE_BLOCK_TIME)
         # Accounts are blocked, so try to lock them
         elif len(self._blocked_account_list):
-            return self._try_lock_accounts()
+            raise BlockedAccountsError()
 
         # Compute budged is exceeded, so decrease EVM steps per iteration
         if len(self._budget_exceeded_list):
@@ -795,14 +796,12 @@ class NeonTxSendStrategyExecutor:
                         self.debug(f'Skip strategy {Strategy.NAME}: {strategy.validation_error_msg}')
                         continue
 
-                    # TODO: check timeout on emulate
-                    # if strategy.prep_after_emulate():
-                    #     continue
-                    strategy.prep_after_emulate()
+                    if strategy.prep_after_emulate():
+                        continue
                     return strategy.execute()
                 raise RuntimeError('fail to sync the emulation and the execution')
 
-            except BlockedAccountsError:
+            except (BlockedAccountsError, NodeBehindError, SolanaUnavailableError):
                 raise
             except Exception as e:
                 if (not Strategy.IS_SIMPLE) or (not SolReceiptParser(e).check_if_budget_exceeded()):

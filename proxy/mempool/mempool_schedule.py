@@ -242,9 +242,9 @@ class MPTxSchedule:
 
         tx: Optional[MPTxRequest] = None
         for sender_txs in self._sender_tx_pools:
-            if sender_txs.is_processing():
-                continue
             tx = sender_txs.acquire_tx()
+            if tx is None:
+                continue
             break
 
         return tx

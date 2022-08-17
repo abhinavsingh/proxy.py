@@ -8,7 +8,7 @@ from typing import Optional, Any
 from neon_py.network import PipePickableDataSrv, IPickableDataServerUser
 
 from ..common_neon.gas_price_calculator import GasPriceCalculator
-from ..common_neon.solana_tx_list_sender import BlockedAccountsError
+from ..common_neon.errors import BlockedAccountsError, NodeBehindError, SolanaUnavailableError
 from ..common_neon.solana_interactor import SolanaInteractor
 from ..common_neon.config import IConfig
 from ..common_neon.config import Config
@@ -54,10 +54,19 @@ class MPExecutor(mp.Process, IPickableDataServerUser):
     def execute_neon_tx(self, mp_tx_request: MPTxRequest):
         with logging_context(req_id=mp_tx_request.req_id, exectr=self._id):
             try:
+                if mp_tx_request.gas_price < self._gas_price_calculator.get_min_gas_price():
+                    self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got low gas price error")
+                    return MPTxResult(MPResultCode.LowGasPrice, None)
                 self.execute_neon_tx_impl(mp_tx_request)
             except BlockedAccountsError:
                 self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got blocked accounts result")
                 return MPTxResult(MPResultCode.BlockedAccount, None)
+            except NodeBehindError:
+                self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got node behind error")
+                return MPTxResult(MPResultCode.SolanaUnavailable, None)
+            except SolanaUnavailableError:
+                self.debug(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got solana unavailable error")
+                return MPTxResult(MPResultCode.SolanaUnavailable, None)
             except Exception as err:
                 err_tb = "".join(traceback.format_tb(err.__traceback__))
                 self.error(f"Failed to execute neon_tx: {mp_tx_request.log_str}, got error: {err}: {err_tb}")

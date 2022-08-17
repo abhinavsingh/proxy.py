@@ -6,7 +6,7 @@ from typing import Optional, Dict, Any
 from ..common_neon.eth_proto import Trx as NeonTrx
 
 from ..common_neon.elf_params import ElfParams
-from ..common_neon.environment_data import MAX_EVM_STEPS_TO_EXECUTE
+from ..common_neon.environment_data import MAX_EVM_STEPS_TO_EXECUTE, RETRY_ON_FAIL
 
 from .environment_utils import neon_cli
 from .errors import EthereumError
@@ -296,14 +296,23 @@ def emulator(contract, sender, data, value):
         neon_token_mint = ElfParams().neon_token_mint
         chain_id = ElfParams().chain_id
         max_evm_steps_to_execute = MAX_EVM_STEPS_TO_EXECUTE
-        return neon_cli().call("emulate",
-                               "--token_mint", str(neon_token_mint),
-                               "--chain_id", str(chain_id),
-                               "--max_steps_to_execute", str(max_evm_steps_to_execute),
-                               sender,
-                               contract,
-                               data,
-                               value)
+        retry_cnt = 0
+        while True:
+            try:
+                return neon_cli().call(
+                    "emulate",
+                    "--token_mint", str(neon_token_mint),
+                    "--chain_id", str(chain_id),
+                    "--max_steps_to_execute", str(max_evm_steps_to_execute),
+                    sender,
+                    contract,
+                    data,
+                    value
+                )
+            except subprocess.TimeoutExpired:
+                retry_cnt += 1
+                if retry_cnt > RETRY_ON_FAIL:
+                    raise
     except subprocess.CalledProcessError as err:
         msg, code = NeonCliErrorParser().execute('emulator', err)
         raise EthereumError(message=msg, code=code)

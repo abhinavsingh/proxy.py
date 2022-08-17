@@ -83,7 +83,8 @@ class MPResultCode(IntEnum):
     Done = 0
     BlockedAccount = 1,
     SolanaUnavailable = 2,
-    Unspecified = 4,
+    LowGasPrice = 4,
+    Unspecified = 255,
     Dummy = -1
 
 

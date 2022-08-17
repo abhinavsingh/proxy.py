@@ -26,11 +26,6 @@ class SolTxListInfo(NamedTuple):
         self.tx_list.extend(src.tx_list)
 
 
-class BlockedAccountsError(Exception):
-    def __init__(self):
-        super().__init__(self)
-
-
 @logged_group("neon.Proxy")
 class SolTxListSender:
     ONE_BLOCK_TIME = 0.4
@@ -143,7 +138,8 @@ class SolTxListSender:
             raise SolTxError(self._unknown_error_receipt)
         elif len(self._node_behind_list):
             self.warning(f'Node is behind by {self._slots_behind} slots')
-            time.sleep(1)
+            raise NodeBehindError()
+
         elif len(self._budget_exceeded_list):
             raise SolTxError(self._budget_exceeded_receipt)
 
