@@ -12,10 +12,10 @@ import json
 import threading
 import traceback
 import time
-import hashlib
 from typing import List, Tuple
 
 from logged_groups import logged_group, logging_context
+from neon_py.utils import gen_unique_id
 
 from ..common.utils import build_http_response
 from ..http.codes import httpStatusCodes
@@ -109,14 +109,10 @@ class NeonRpcApiPlugin(HttpWebServerBasePlugin):
         return response
 
     def handle_request(self, request: HttpParser) -> None:
-        unique_req_id = self.get_unique_id()
-        with logging_context(req_id=unique_req_id):
+        req_id = gen_unique_id()
+        with logging_context(req_id=req_id):
             self.handle_request_impl(request)
             self.info("Request processed")
-
-    @staticmethod
-    def get_unique_id():
-        return hashlib.md5((time.time_ns()).to_bytes(16, 'big')).hexdigest()[:7]
 
     def handle_request_impl(self, request: HttpParser) -> None:
         if request.method == b'OPTIONS':

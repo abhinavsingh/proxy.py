@@ -2,12 +2,12 @@ from __future__ import annotations
 import threading
 from typing import Callable
 from logged_groups import logged_group
+from neon_py.network import AddrPickableDataClient
 
 from .mempool_api import MPTxRequest, MPPendingTxNonceReq, MPPendingTxByHashReq, MPSendTxResult
 
 from ..common_neon.eth_proto import Trx as NeonTx
 from ..common_neon.data import NeonTxExecCfg
-from ..common_neon.utils import AddrPickableDataClient
 
 
 def _guard_conn(method: Callable) -> Callable:
@@ -34,10 +34,10 @@ class MemPoolClient:
 
     RECONNECT_MP_TIME_SEC = 5
 
-    def __init__(self, host: str, port: int):
+    def __init__(self, address):
         self.debug("Init MemPoolClient")
         self._mp_conn_lock = threading.Lock()
-        self._address = (host, port)
+        self._address = address
         self._is_connecting = threading.Event()
         self._connect_mp()
 

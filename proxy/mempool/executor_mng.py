@@ -4,10 +4,11 @@ import socket
 from abc import ABC, abstractmethod
 from collections import deque
 from typing import List, Tuple, Deque, Set, cast
+
 from logged_groups import logged_group
+from neon_py.network import PipePickableDataClient
 
 from ..common_neon.config import IConfig
-from ..common_neon.utils import PipePickableDataClient
 
 from .mempool_api import MPRequest, IMPExecutor, MPRequestType, MPTxRequest
 from .mempool_executor import MPExecutor

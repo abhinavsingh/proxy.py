@@ -29,8 +29,7 @@ def get_transfer_mp_request(*, req_id: str, nonce: int, gas: int, gasPrice: int,
     w3 = Web3()
     signed_tx_data = w3.eth.account.sign_transaction(
         dict(nonce=nonce, chainId=111, gas=gas, gasPrice=gasPrice, to=to_addr, value=value, data=data),
-        from_acc.key
-    )
+        from_acc.key)
     signature = signed_tx_data.hash.hex()
     neon_tx = NeonTx.fromString(bytearray(signed_tx_data.rawTransaction))
     mp_tx_request = MPTxRequest(req_id=req_id, signature=signature, neon_tx=neon_tx, sender_tx_cnt=nonce)
@@ -151,9 +150,9 @@ class TestMemPool(unittest.IsolatedAsyncioTestCase):
         """Checks if the transaction with the same nonce but the higher gasPrice substitutes the current one"""
         from_acc = create_account()
         base_request = get_transfer_mp_request(req_id="0", from_acc=from_acc, nonce=0, gasPrice=30000, gas=987654321, value=1, data=b'')
-        await self._mempool._schedule_mp_tx_request(base_request)
+        await self._mempool.schedule_mp_tx_request(base_request)
         subst_request = get_transfer_mp_request(req_id="1", from_acc=from_acc, nonce=0, gasPrice=40000, gas=987654321, value=2, data=b'')
-        await self._mempool._schedule_mp_tx_request(subst_request)
+        await self._mempool.schedule_mp_tx_request(subst_request)
         is_available_mock.return_value = True
         self._mempool.on_resource_got_available(1)
         await asyncio.sleep(0)
@@ -166,9 +165,9 @@ class TestMemPool(unittest.IsolatedAsyncioTestCase):
         """Checks if the transaction with the same nonce but the lower gasPrice is ignored"""
         from_acc = create_account()
         base_request = get_transfer_mp_request(req_id="0", from_acc=from_acc, nonce=0, gasPrice=40000, gas=987654321, value=1, data=b'')
-        await self._mempool._schedule_mp_tx_request(base_request)
+        await self._mempool.schedule_mp_tx_request(base_request)
         subst_request = get_transfer_mp_request(req_id="1", from_acc=from_acc, nonce=0, gasPrice=30000, gas=987654321, value=2, data=b'')
-        await self._mempool._schedule_mp_tx_request(subst_request)
+        await self._mempool.schedule_mp_tx_request(subst_request)
         is_available_mock.return_value = True
         self._mempool.on_resource_got_available(1)
         await asyncio.sleep(0)
@@ -253,8 +252,7 @@ class TestMPSchedule(unittest.TestCase):
                     dict(req_id="003", nonce=1, gasPrice=70000, gas=1000, value=1, from_acc=acc[2], to_acc=acc[1]),
                     dict(req_id="004", nonce=2, gasPrice=25000, gas=1000, value=1, from_acc=acc[1], to_acc=acc[2]),
                     dict(req_id="005", nonce=2, gasPrice=50000, gas=1000, value=1, from_acc=acc[2], to_acc=acc[1]),
-                    dict(req_id="006", nonce=3, gasPrice=50000, gas=1000, value=1, from_acc=acc[2], to_acc=acc[1])
-                    ]
+                    dict(req_id="006", nonce=3, gasPrice=50000, gas=1000, value=1, from_acc=acc[2], to_acc=acc[1]) ]
         self.requests = [get_transfer_mp_request(**req) for req in req_data]
         for request in self.requests[0:3]:
             schedule.add_mp_tx_request(request)

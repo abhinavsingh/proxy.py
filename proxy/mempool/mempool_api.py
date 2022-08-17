@@ -61,6 +61,7 @@ class MPTxRequest(MPRequest):
         tx_hash = self.signature
         self.log_str = f"MPTxRequest(hash={tx_hash[:10]}..., sender_address=0x{self.sender_address[:10]}..., nonce={self.nonce}, gas_price={self.gas_price})"
 
+
 @dataclass
 class MPPendingTxNonceReq(MPRequest):
 
