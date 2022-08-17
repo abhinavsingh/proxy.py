@@ -1,5 +1,6 @@
 import struct
 
+from enum import Enum
 from typing import Optional, List
 
 from sha3 import keccak_256
@@ -22,6 +23,35 @@ from .utils import get_holder_msg
 from ..common_neon.solana_alt import ADDRESS_LOOKUP_TABLE_ID
 
 
+class EvmInstruction(Enum):
+    CreateAccount = b'\x02' # 2 deprecated
+    CallFromRawEthereumTX = b'\x05' # 5
+    OnReturn = b'\x06' # 6 deprecated
+    OnEvent = b'\x07' # 7 deprecated
+    PartialCallFromRawEthereumTX = b'\x09' # 9 deprecated
+    Continue = b'\x0a' # 10 deprecated
+    ExecuteTrxFromAccountDataIterative = b'\x0b' # 11 deprecated
+    Cancel = b'\x0c' # 12 deprecated
+    PartialCallOrContinueFromRawEthereumTX = b'\x0d' # 13
+    ExecuteTrxFromAccountDataIterativeOrContinue = b'\x0e' # 14
+    ERC20CreateTokenAccount = b'\x0f' # 15
+    DeleteHolderOrStorageAccount = b'\x10' # 16
+    ResizeContractAccount = b'\x11' # 17
+    WriteHolder = b'\x12' # 18
+    PartialCallFromRawEthereumTXv02 = b'\x13' # 19
+    ContinueV02 = b'\x14' # 20
+    CancelWithNonce = b'\x15' # 21
+    ExecuteTrxFromAccountDataIterativeV02 = b'\x16' # 22
+    UpdateValidsTable = b'\x17' # 23
+    CreateAccountV02 = b'\x18' # 24
+    Deposit = b'\x19' # 25
+    MigrateAccount = b'\x1a' # 26
+    ExecuteTrxFromAccountDataIterativeOrContinueNoChainId = b'\x1b' # 27
+    WriteValueToDistributedStorage = b'\x1c' # 28
+    ConvertDataAccountFromV1ToV2 = b'\x1d' # 29
+    CollectTreasure = b'\x1e' # 30
+
+
 def create_account_with_seed_layout(base, seed, lamports, space):
     return SYSTEM_INSTRUCTIONS_LAYOUT.build(
         dict(
@@ -38,14 +68,15 @@ def create_account_with_seed_layout(base, seed, lamports, space):
 
 
 def create_account_layout(ether, nonce):
-    return bytes.fromhex("18")+CREATE_ACCOUNT_LAYOUT.build(dict(
-        ether=ether,
-        nonce=nonce
-    ))
+    return (EvmInstruction.CreateAccountV02.value +
+            CREATE_ACCOUNT_LAYOUT.build(dict(
+                ether=ether,
+                nonce=nonce
+            )))
 
 
 def write_holder_layout(nonce, offset, data):
-    return (bytes.fromhex('12') +
+    return (EvmInstruction.WriteHolder.value +
             nonce.to_bytes(8, byteorder='little') +
             offset.to_bytes(4, byteorder='little') +
             len(data).to_bytes(8, byteorder='little') +
@@ -178,7 +209,7 @@ class NeonIxBuilder:
     def make_erc20token_account_instruction(self, token_info) -> TransactionInstruction:
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
-            data=bytes.fromhex('0F'),
+            data=EvmInstruction.ERC20CreateTokenAccount.value,
             keys=[
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
                 AccountMeta(pubkey=PublicKey(token_info["key"]), is_signer=False, is_writable=True),
@@ -194,7 +225,7 @@ class NeonIxBuilder:
     def make_resize_instruction(self, account, code_account_old, code_account_new, seed) -> TransactionInstruction:
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
-            data=bytearray.fromhex("11") + bytes(seed),  # 17- ResizeStorageAccount
+            data=EvmInstruction.ResizeContractAccount.value + bytes(seed),  # 17- ResizeStorageAccount
             keys=[
                 AccountMeta(pubkey=PublicKey(account), is_signer=False, is_writable=True),
                 (
@@ -230,7 +261,7 @@ class NeonIxBuilder:
     def make_05_call_instruction(self) -> TransactionInstruction:
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
-            data=bytearray.fromhex("05") + self.collateral_pool_index_buf + self.msg,
+            data=EvmInstruction.CallFromRawEthereumTX.value + self.collateral_pool_index_buf + self.msg,
             keys=[
                 AccountMeta(pubkey=SYSVAR_INSTRUCTION_PUBKEY, is_signer=False, is_writable=False),
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
@@ -257,7 +288,7 @@ class NeonIxBuilder:
             storage_account = self.storage
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
-            data=bytearray.fromhex("15") + nonce.to_bytes(8, 'little'),
+            data=EvmInstruction.CancelWithNonce.value + nonce.to_bytes(8, 'little'),
             keys=[
                 AccountMeta(pubkey=storage_account, is_signer=False, is_writable=True),
                 AccountMeta(pubkey=self.operator_account, is_signer=True, is_writable=True),
@@ -266,7 +297,7 @@ class NeonIxBuilder:
         )
 
     def make_partial_call_or_continue_instruction(self, steps: int) -> TransactionInstruction:
-        data = bytearray.fromhex("0D") + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little") + self.msg
+        data = EvmInstruction.PartialCallOrContinueFromRawEthereumTX.value + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder="little") + self.msg
         return TransactionInstruction(
             program_id=EVM_LOADER_ID,
             data=data,
@@ -289,10 +320,10 @@ class NeonIxBuilder:
         return trx
 
     def _make_partial_call_or_continue_from_account_data(self,
-                                                         ix_id: str,
+                                                         ix_id_byte: bytes,
                                                          steps: int,
                                                          index: int) -> TransactionInstruction:
-        data = bytearray.fromhex(ix_id) + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
+        data = ix_id_byte + self.collateral_pool_index_buf + steps.to_bytes(8, byteorder='little')
         if index:
             data = data + index.to_bytes(8, byteorder="little")
         return TransactionInstruction(
@@ -313,12 +344,20 @@ class NeonIxBuilder:
     def make_partial_call_or_continue_from_account_data_instruction(self,
                                                                     steps: int,
                                                                     index: int) -> TransactionInstruction:
-        return self._make_partial_call_or_continue_from_account_data('0E', steps, index)
+        return self._make_partial_call_or_continue_from_account_data(
+            EvmInstruction.ExecuteTrxFromAccountDataIterativeOrContinue.value,
+            steps,
+            index
+        )
 
     def make_partial_call_or_continue_from_account_data_no_chainid_instruction(self,
                                                                                steps: int,
                                                                                index: int) -> TransactionInstruction:
-        return self._make_partial_call_or_continue_from_account_data('1B', steps, index)
+        return self._make_partial_call_or_continue_from_account_data(
+            EvmInstruction.ExecuteTrxFromAccountDataIterativeOrContinueNoChainId.value,
+            steps,
+            index
+        )
 
     def make_create_lookup_table_instruction(self, table_account: PublicKey,
                                              recent_block_slot: int,

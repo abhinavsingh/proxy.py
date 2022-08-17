@@ -159,22 +159,6 @@ class ERC20Wrapper:
         neon.init_eth_accounts(eth_accounts)
         return neon
 
-    def create_neon_erc20_account_instruction(self, payer: PublicKey, eth_address: str):
-        return TransactionInstruction(
-            program_id=self.evm_loader_id,
-            data=bytes.fromhex('0F'),
-            keys=[
-                AccountMeta(pubkey=payer, is_signer=True, is_writable=True),
-                AccountMeta(pubkey=self.get_neon_erc20_account_address(eth_address), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.get_neon_account_address(eth_address), is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.solana_contract_address, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=self.token.pubkey, is_signer=False, is_writable=True),
-                AccountMeta(pubkey=SYS_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=TOKEN_PROGRAM_ID, is_signer=False, is_writable=False),
-                AccountMeta(pubkey=SYSVAR_RENT_PUBKEY, is_signer=False, is_writable=False),
-            ]
-        )
-
     def create_input_liquidity_instruction(self, payer: PublicKey, from_address: PublicKey, to_address: str, amount: int):
         return TransactionInstruction(
             program_id=TOKEN_PROGRAM_ID,

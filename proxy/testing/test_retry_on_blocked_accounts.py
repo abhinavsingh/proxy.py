@@ -16,7 +16,7 @@ from eth_utils import big_endian_to_int
 from ethereum.transactions import Transaction as EthTrx
 from ethereum.utils import sha3
 from ..common_neon.compute_budget import TransactionWithComputeBudget
-from ..common_neon.neon_instruction import make_keccak_instruction_data
+from ..common_neon.neon_instruction import EvmInstruction, make_keccak_instruction_data
 from solana.rpc.commitment import Confirmed
 from solana.system_program import SYS_PROGRAM_ID
 from .solana_utils import *
@@ -194,7 +194,12 @@ class BlockedTest(unittest.TestCase):
     def sol_instr_partial_call_or_continue(self, storage_account, step_count, evm_instruction):
         return TransactionInstruction(
             program_id=self.loader.loader_id,
-            data=bytearray.fromhex("0D") + self.collateral_pool_index_buf + step_count.to_bytes(8, byteorder='little') + evm_instruction,
+            data=(
+                EvmInstruction.PartialCallOrContinueFromRawEthereumTX.value +
+                self.collateral_pool_index_buf +
+                step_count.to_bytes(8, byteorder='little') +
+                evm_instruction
+            ),
             keys=[
                 AccountMeta(pubkey=storage_account, is_signer=False, is_writable=True),
 
