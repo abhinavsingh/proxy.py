@@ -12,11 +12,11 @@ import os
 import logging
 from typing import BinaryIO, Optional
 
-from proxy.plugin.cache.store.base import CacheStore
 from proxy.common.flag import flags
 from proxy.http.parser import HttpParser
 from proxy.common.utils import text_
 from proxy.common.constants import DEFAULT_CACHE_DIRECTORY_PATH
+from proxy.plugin.cache.store.base import CacheStore
 
 
 logger = logging.getLogger(__name__)

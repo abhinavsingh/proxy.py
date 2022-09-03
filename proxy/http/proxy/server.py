@@ -23,19 +23,18 @@ import threading
 import subprocess
 from typing import Any, Dict, List, Union, Optional, cast
 
-from proxy.http.proxy.plugin import HttpProxyBasePlugin
+from proxy.common.pki import gen_csr, sign_csr, gen_public_key
+from proxy.core.event import eventNames
+from proxy.common.flag import flags
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.common.types import Readables, Writables, Descriptors
+from proxy.common.utils import text_
 from proxy.http.headers import httpHeaders
 from proxy.http.methods import httpMethods
 from proxy.http.exception import HttpProtocolException, ProxyConnectionFailed
 from proxy.http.protocols import httpProtocols
 from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
-from proxy.common.pki import gen_csr, sign_csr, gen_public_key
-from proxy.core.event import eventNames
-from proxy.common.flag import flags
-from proxy.common.types import Readables, Writables, Descriptors
-from proxy.common.utils import text_
 from proxy.core.connection import (
     TcpServerConnection, TcpConnectionUninitializedException,
 )
@@ -46,6 +45,7 @@ from proxy.common.constants import (
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT,
     DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT,
 )
+from proxy.http.proxy.plugin import HttpProxyBasePlugin
 
 
 logger = logging.getLogger(__name__)

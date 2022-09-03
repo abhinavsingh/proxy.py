@@ -10,8 +10,8 @@
 """
 from typing import Any, Optional
 
-from proxy.socks.client import SocksClientConnection
 from proxy.core.base import BaseTcpServerHandler
+from proxy.socks.client import SocksClientConnection
 
 
 class SocksProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):

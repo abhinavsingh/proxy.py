@@ -13,12 +13,12 @@ import random
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http import Url
-from proxy.http.parser import HttpParser
-from proxy.http.exception import HttpProtocolException
 from proxy.core.base import TcpUpstreamConnectionHandler
+from proxy.http.parser import HttpParser
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.common.utils import text_
+from proxy.http.exception import HttpProtocolException
 from proxy.common.constants import (
     HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
     DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT,

@@ -9,7 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 from proxy.http.server.web import HttpWebServerPlugin
-from proxy.http.server.plugin import ReverseProxyBasePlugin, HttpWebServerBasePlugin
+from proxy.http.server.plugin import (
+    ReverseProxyBasePlugin, HttpWebServerBasePlugin,
+)
 from proxy.http.server.protocols import httpProtocolTypes
 from proxy.http.server.pac_plugin import HttpWebServerPacFilePlugin
 

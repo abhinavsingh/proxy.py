@@ -14,7 +14,6 @@ import secrets
 import selectors
 from typing import Callable, Optional
 
-from proxy.http.websocket.frame import WebsocketFrame
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.types import TcpOrTlsSocket
 from proxy.common.utils import (
@@ -24,6 +23,7 @@ from proxy.core.connection import TcpConnection, tcpConnectionTypes
 from proxy.common.constants import (
     DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT,
 )
+from proxy.http.websocket.frame import WebsocketFrame
 
 
 class WebsocketClient(TcpConnection):

@@ -14,13 +14,13 @@
 """
 from typing import Any, List, Tuple, Optional
 
-from proxy.http.server.plugin import HttpWebServerBasePlugin
-from proxy.http.parser import HttpParser
-from proxy.http.server.protocols import httpProtocolTypes
-from proxy.http.responses import okResponse
 from proxy.common.flag import flags
+from proxy.http.parser import HttpParser
 from proxy.common.utils import text_, bytes_
+from proxy.http.responses import okResponse
 from proxy.common.constants import DEFAULT_PAC_FILE, DEFAULT_PAC_FILE_URL_PATH
+from proxy.http.server.plugin import HttpWebServerBasePlugin
+from proxy.http.server.protocols import httpProtocolTypes
 
 
 flags.add_argument(
