@@ -16,20 +16,20 @@ import gzip
 from typing import Dict, List, Type, Tuple, TypeVar, Optional
 
 from proxy.http.url import Url
-from proxy.http.parser.chunk import ChunkParser, chunkParserStates
-from proxy.http.parser.types import httpParserTypes, httpParserStates
-from proxy.http.methods import httpMethods
-from proxy.http.parser.protocol import ProxyProtocol
-from proxy.http.exception import HttpProtocolException
-from proxy.http.protocols import httpProtocols
 from proxy.common.flag import flags
 from proxy.common.utils import (
     text_, bytes_, build_http_request, build_http_response,
 )
+from proxy.http.methods import httpMethods
+from proxy.http.exception import HttpProtocolException
+from proxy.http.protocols import httpProtocols
 from proxy.common.constants import (
     CRLF, COLON, SLASH, HTTP_1_0, HTTP_1_1, WHITESPACE, DEFAULT_HTTP_PORT,
     DEFAULT_DISABLE_HEADERS, DEFAULT_ENABLE_PROXY_PROTOCOL,
 )
+from proxy.http.parser.chunk import ChunkParser, chunkParserStates
+from proxy.http.parser.types import httpParserTypes, httpParserStates
+from proxy.http.parser.protocol import ProxyProtocol
 
 
 flags.add_argument(

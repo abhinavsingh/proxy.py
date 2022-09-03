@@ -11,9 +11,9 @@
 import json
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from proxy.http.websocket import WebsocketFrame, WebSocketTransportBasePlugin
 from proxy.core.event import EventSubscriber
 from proxy.common.utils import bytes_
+from proxy.http.websocket import WebsocketFrame, WebSocketTransportBasePlugin
 
 
 if TYPE_CHECKING:   # pragma: no cover

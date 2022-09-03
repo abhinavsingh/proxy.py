@@ -10,8 +10,8 @@
 """
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-from proxy.http.exception.base import HttpProtocolException
 from proxy.common.utils import build_http_response
+from proxy.http.exception.base import HttpProtocolException
 
 
 if TYPE_CHECKING:   # pragma: no cover

@@ -17,14 +17,14 @@ import logging
 import selectors
 from typing import Any, List, Type, Tuple, Optional
 
+from proxy.core.base import BaseTcpServerHandler
 from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
 from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.common.types import Readables, Writables, SelectableEvents
 from proxy.http.exception import HttpProtocolException
 from proxy.http.protocols import httpProtocols
 from proxy.http.responses import BAD_REQUEST_RESPONSE_PKT
-from proxy.core.base import BaseTcpServerHandler
 from proxy.http.connection import HttpClientConnection
-from proxy.common.types import Readables, Writables, SelectableEvents
 from proxy.common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
 

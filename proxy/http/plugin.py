@@ -13,11 +13,11 @@ import argparse
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Union, Optional
 
-from proxy.http.parser import HttpParser
-from proxy.http.connection import HttpClientConnection
 from proxy.core.event import EventQueue
-from proxy.http.descriptors import DescriptorsHandlerMixin
+from proxy.http.parser import HttpParser
 from proxy.common.utils import tls_interception_enabled
+from proxy.http.connection import HttpClientConnection
+from proxy.http.descriptors import DescriptorsHandlerMixin
 
 
 if TYPE_CHECKING:   # pragma: no cover

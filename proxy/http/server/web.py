@@ -14,22 +14,22 @@ import socket
 import logging
 from typing import Any, Dict, List, Tuple, Union, Pattern, Optional
 
-from proxy.http.server.plugin import HttpWebServerBasePlugin
+from proxy.common.flag import flags
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.http.plugin import HttpProtocolHandlerPlugin
-from proxy.http.server.protocols import httpProtocolTypes
+from proxy.common.types import Readables, Writables, Descriptors
+from proxy.common.utils import text_, build_websocket_handshake_response
 from proxy.http.exception import HttpProtocolException
 from proxy.http.protocols import httpProtocols
 from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
 from proxy.http.websocket import WebsocketFrame, websocketOpcodes
-from proxy.common.flag import flags
-from proxy.common.types import Readables, Writables, Descriptors
-from proxy.common.utils import text_, build_websocket_handshake_response
 from proxy.common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
     DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
     DEFAULT_WEB_ACCESS_LOG_FORMAT, DEFAULT_MIN_COMPRESSION_LENGTH,
 )
+from proxy.http.server.plugin import HttpWebServerBasePlugin
+from proxy.http.server.protocols import httpProtocolTypes
 
 
 logger = logging.getLogger(__name__)

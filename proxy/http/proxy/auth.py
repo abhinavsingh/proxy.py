@@ -16,9 +16,9 @@
 from typing import Optional
 
 from proxy.http import httpHeaders
-from proxy.http.exception import ProxyAuthenticationFailed
 from proxy.http.proxy import HttpProxyBasePlugin
 from proxy.http.parser import HttpParser
+from proxy.http.exception import ProxyAuthenticationFailed
 
 
 class AuthPlugin(HttpProxyBasePlugin):
