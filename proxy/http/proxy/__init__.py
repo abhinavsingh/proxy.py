@@ -8,8 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .plugin import HttpProxyBasePlugin
-from .server import HttpProxyPlugin
+from proxy.http.proxy.plugin import HttpProxyBasePlugin
+from proxy.http.proxy.server import HttpProxyPlugin
 
 
 __all__ = [

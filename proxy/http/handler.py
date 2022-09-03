@@ -17,15 +17,15 @@ import logging
 import selectors
 from typing import Any, List, Type, Tuple, Optional
 
-from .parser import HttpParser, httpParserTypes, httpParserStates
-from .plugin import HttpProtocolHandlerPlugin
-from .exception import HttpProtocolException
-from .protocols import httpProtocols
-from .responses import BAD_REQUEST_RESPONSE_PKT
-from ..core.base import BaseTcpServerHandler
-from .connection import HttpClientConnection
-from ..common.types import Readables, Writables, SelectableEvents
-from ..common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.http.exception import HttpProtocolException
+from proxy.http.protocols import httpProtocols
+from proxy.http.responses import BAD_REQUEST_RESPONSE_PKT
+from proxy.core.base import BaseTcpServerHandler
+from proxy.http.connection import HttpClientConnection
+from proxy.common.types import Readables, Writables, SelectableEvents
+from proxy.common.constants import DEFAULT_SELECTOR_SELECT_TIMEOUT
 
 
 logger = logging.getLogger(__name__)

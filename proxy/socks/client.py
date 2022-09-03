@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from ..core.connection import TcpClientConnection
+from proxy.core.connection import TcpClientConnection
 
 
 class SocksClientConnection(TcpClientConnection):

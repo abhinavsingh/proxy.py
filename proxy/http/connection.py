@@ -13,7 +13,7 @@
        http
        iterable
 """
-from ..core.connection import TcpClientConnection
+from proxy.core.connection import TcpClientConnection
 
 
 class HttpClientConnection(TcpClientConnection):

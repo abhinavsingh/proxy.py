@@ -15,11 +15,11 @@
 import re
 from typing import List, Tuple, Union
 
-from ..http import Url
-from ..http.parser import HttpParser
-from ..http.server import ReverseProxyBasePlugin
-from ..common.types import RePattern
-from ..http.exception.base import HttpProtocolException
+from proxy.http import Url
+from proxy.http.parser import HttpParser
+from proxy.http.server import ReverseProxyBasePlugin
+from proxy.common.types import RePattern
+from proxy.http.exception.base import HttpProtocolException
 
 
 class ReverseProxyPlugin(ReverseProxyBasePlugin):

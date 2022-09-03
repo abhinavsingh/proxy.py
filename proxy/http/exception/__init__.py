@@ -8,10 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .base import HttpProtocolException
-from .proxy_auth_failed import ProxyAuthenticationFailed
-from .proxy_conn_failed import ProxyConnectionFailed
-from .http_request_rejected import HttpRequestRejected
+from proxy.http.exception.base import HttpProtocolException
+from proxy.http.exception.proxy_auth_failed import ProxyAuthenticationFailed
+from proxy.http.exception.proxy_conn_failed import ProxyConnectionFailed
+from proxy.http.exception.http_request_rejected import HttpRequestRejected
 
 
 __all__ = [

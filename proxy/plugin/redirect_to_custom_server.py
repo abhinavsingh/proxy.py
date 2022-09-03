@@ -11,8 +11,8 @@
 from typing import Optional
 from urllib import parse as urlparse
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser
 
 
 class RedirectToCustomServerPlugin(HttpProxyBasePlugin):

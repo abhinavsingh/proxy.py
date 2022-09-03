@@ -8,8 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .base import BaseCacheResponsesPlugin
-from .cache_responses import CacheResponsesPlugin
+from proxy.plugin.cache.base import BaseCacheResponsesPlugin
+from proxy.plugin.cache.cache_responses import CacheResponsesPlugin
 
 
 __all__ = [

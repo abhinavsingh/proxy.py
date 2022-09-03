@@ -14,10 +14,10 @@ from typing import Any, List, Optional, Generator
 
 import unittest
 
-from ..proxy import Proxy
-from ..plugin import CacheResponsesPlugin
-from ..common.utils import new_socket_connection
-from ..common.constants import DEFAULT_TIMEOUT
+from proxy.proxy import Proxy
+from proxy.plugin import CacheResponsesPlugin
+from proxy.common.utils import new_socket_connection
+from proxy.common.constants import DEFAULT_TIMEOUT
 
 
 class TestCase(unittest.TestCase):

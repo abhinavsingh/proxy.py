@@ -15,9 +15,9 @@
 """
 from typing import List, Tuple, Optional
 
-from .exception import HttpProtocolException
-from ..common.utils import text_
-from ..common.constants import AT, COLON, SLASH, DEFAULT_ALLOWED_URL_SCHEMES
+from proxy.http.exception import HttpProtocolException
+from proxy.common.utils import text_
+from proxy.common.constants import AT, COLON, SLASH, DEFAULT_ALLOWED_URL_SCHEMES
 
 
 class Url:

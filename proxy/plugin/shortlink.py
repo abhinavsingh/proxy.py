@@ -14,10 +14,10 @@
 """
 from typing import Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
-from ..http.responses import NOT_FOUND_RESPONSE_PKT, seeOthersResponse
-from ..common.constants import DOT, SLASH
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT, seeOthersResponse
+from proxy.common.constants import DOT, SLASH
 
 
 class ShortLinkPlugin(HttpProxyBasePlugin):

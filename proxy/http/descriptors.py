@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from ..common.types import Readables, Writables, Descriptors
+from proxy.common.types import Readables, Writables, Descriptors
 
 
 # Since 3.4.0

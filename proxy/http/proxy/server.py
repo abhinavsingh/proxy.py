@@ -23,23 +23,23 @@ import threading
 import subprocess
 from typing import Any, Dict, List, Union, Optional, cast
 
-from .plugin import HttpProxyBasePlugin
-from ..parser import HttpParser, httpParserTypes, httpParserStates
-from ..plugin import HttpProtocolHandlerPlugin
-from ..headers import httpHeaders
-from ..methods import httpMethods
-from ..exception import HttpProtocolException, ProxyConnectionFailed
-from ..protocols import httpProtocols
-from ..responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
-from ...common.pki import gen_csr, sign_csr, gen_public_key
-from ...core.event import eventNames
-from ...common.flag import flags
-from ...common.types import Readables, Writables, Descriptors
-from ...common.utils import text_
-from ...core.connection import (
+from proxy.http.proxy.plugin import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser, httpParserTypes, httpParserStates
+from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.http.headers import httpHeaders
+from proxy.http.methods import httpMethods
+from proxy.http.exception import HttpProtocolException, ProxyConnectionFailed
+from proxy.http.protocols import httpProtocols
+from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
+from proxy.common.pki import gen_csr, sign_csr, gen_public_key
+from proxy.core.event import eventNames
+from proxy.common.flag import flags
+from proxy.common.types import Readables, Writables, Descriptors
+from proxy.common.utils import text_
+from proxy.core.connection import (
     TcpServerConnection, TcpConnectionUninitializedException,
 )
-from ...common.constants import (
+from proxy.common.constants import (
     COMMA, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH, DEFAULT_CA_CERT_DIR,
     DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE, DEFAULT_DISABLE_HEADERS,
     PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HTTP_PROXY,

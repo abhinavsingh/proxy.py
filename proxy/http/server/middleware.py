@@ -8,10 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from abc import ABC
 
 
-class HttpWebServerBaseMiddleware(ABC):
+class HttpWebServerBaseMiddleware:
     """Web Server Middle-ware for customization during request/response dispatch lifecycle."""
 
     pass

@@ -15,9 +15,9 @@
        websocket
        Websocket
 """
-from .frame import WebsocketFrame, websocketOpcodes
-from .client import WebsocketClient
-from .plugin import WebSocketTransportBasePlugin
+from proxy.http.websocket.frame import WebsocketFrame, websocketOpcodes
+from proxy.http.websocket.client import WebsocketClient
+from proxy.http.websocket.plugin import WebSocketTransportBasePlugin
 
 
 __all__ = [

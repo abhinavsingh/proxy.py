@@ -14,14 +14,14 @@ import logging
 import ipaddress
 from typing import Any, Dict, List, Optional
 
-from ..http import Url, httpHeaders, httpMethods
-from ..core.base import TcpUpstreamConnectionHandler
-from ..http.proxy import HttpProxyBasePlugin
-from ..common.flag import flags
-from ..http.parser import HttpParser
-from ..common.utils import text_, bytes_
-from ..http.exception import HttpProtocolException
-from ..common.constants import (
+from proxy.http import Url, httpHeaders, httpMethods
+from proxy.core.base import TcpUpstreamConnectionHandler
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.common.flag import flags
+from proxy.http.parser import HttpParser
+from proxy.common.utils import text_, bytes_
+from proxy.http.exception import HttpProtocolException
+from proxy.common.constants import (
     COLON, ANY_INTERFACE_HOSTNAMES, LOCAL_INTERFACE_HOSTNAMES,
 )
 

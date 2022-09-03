@@ -14,11 +14,11 @@ import logging
 import multiprocessing
 from typing import Any, Dict, Optional
 
-from .base import BaseCacheResponsesPlugin
-from ...http import httpStatusCodes
-from .store.disk import OnDiskCacheStore
-from ...http.parser import HttpParser, httpParserTypes
-from ...common.constants import SLASH
+from proxy.plugin.cache.base import BaseCacheResponsesPlugin
+from proxy.http import httpStatusCodes
+from proxy.plugin.cache.store.disk import OnDiskCacheStore
+from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.constants import SLASH
 
 
 br_installed = False

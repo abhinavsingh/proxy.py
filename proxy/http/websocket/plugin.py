@@ -13,9 +13,9 @@ import argparse
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from . import WebsocketFrame
-from ...core.event import EventQueue
-from ...common.utils import bytes_
+from proxy.http.websocket import WebsocketFrame
+from proxy.core.event import EventQueue
+from proxy.common.utils import bytes_
 
 
 if TYPE_CHECKING:   # pragma: no cover

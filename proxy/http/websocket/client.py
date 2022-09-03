@@ -14,14 +14,14 @@ import secrets
 import selectors
 from typing import Callable, Optional
 
-from .frame import WebsocketFrame
-from ..parser import HttpParser, httpParserTypes
-from ...common.types import TcpOrTlsSocket
-from ...common.utils import (
+from proxy.http.websocket.frame import WebsocketFrame
+from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.common.types import TcpOrTlsSocket
+from proxy.common.utils import (
     text_, new_socket_connection, build_websocket_handshake_request,
 )
-from ...core.connection import TcpConnection, tcpConnectionTypes
-from ...common.constants import (
+from proxy.core.connection import TcpConnection, tcpConnectionTypes
+from proxy.common.constants import (
     DEFAULT_BUFFER_SIZE, DEFAULT_SELECTOR_SELECT_TIMEOUT,
 )
 

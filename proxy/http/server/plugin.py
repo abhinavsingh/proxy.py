@@ -13,15 +13,15 @@ import mimetypes
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
-from ..parser import HttpParser
-from ...http.url import Url
-from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
-from ..websocket import WebsocketFrame
-from ..connection import HttpClientConnection
-from ...core.event import EventQueue
-from ..descriptors import DescriptorsHandlerMixin
-from ...common.types import RePattern
-from ...common.utils import bytes_
+from proxy.http.parser import HttpParser
+from proxy.http.url import Url
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT, okResponse
+from proxy.http.websocket import WebsocketFrame
+from proxy.http.connection import HttpClientConnection
+from proxy.core.event import EventQueue
+from proxy.http.descriptors import DescriptorsHandlerMixin
+from proxy.common.types import RePattern
+from proxy.common.utils import bytes_
 
 
 if TYPE_CHECKING:   # pragma: no cover

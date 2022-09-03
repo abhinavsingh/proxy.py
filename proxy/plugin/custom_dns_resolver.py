@@ -15,8 +15,8 @@
 import socket
 from typing import Tuple, Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..common.types import HostPort
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.common.types import HostPort
 
 
 class CustomDnsResolverPlugin(HttpProxyBasePlugin):

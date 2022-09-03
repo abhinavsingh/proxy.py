@@ -8,13 +8,13 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .url import Url
-from .codes import httpStatusCodes
-from .plugin import HttpProtocolHandlerPlugin
-from .handler import HttpProtocolHandler
-from .headers import httpHeaders
-from .methods import httpMethods
-from .connection import HttpClientConnection
+from proxy.http.url import Url
+from proxy.http.codes import httpStatusCodes
+from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.http.handler import HttpProtocolHandler
+from proxy.http.headers import httpHeaders
+from proxy.http.methods import httpMethods
+from proxy.http.connection import HttpClientConnection
 
 
 __all__ = [

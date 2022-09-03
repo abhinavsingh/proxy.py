@@ -11,11 +11,11 @@
 import logging
 from typing import Any, Optional
 
-from .store.base import CacheStore
-from ...http.proxy import HttpProxyBasePlugin
-from ...common.flag import flags
-from ...http.parser import HttpParser
-from ...common.constants import (
+from proxy.plugin.cache.store.base import CacheStore
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.common.flag import flags
+from proxy.http.parser import HttpParser
+from proxy.common.constants import (
     DEFAULT_CACHE_REQUESTS, DEFAULT_CACHE_BY_CONTENT_TYPE,
 )
 

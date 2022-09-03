@@ -24,9 +24,9 @@ except ImportError:     # pragma: no cover
 
 from typing import Tuple, Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..common.flag import flags
-from ..common.types import HostPort
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.common.flag import flags
+from proxy.common.types import HostPort
 
 
 logger = logging.getLogger(__name__)

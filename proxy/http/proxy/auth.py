@@ -15,10 +15,10 @@
 """
 from typing import Optional
 
-from ...http import httpHeaders
-from ..exception import ProxyAuthenticationFailed
-from ...http.proxy import HttpProxyBasePlugin
-from ...http.parser import HttpParser
+from proxy.http import httpHeaders
+from proxy.http.exception import ProxyAuthenticationFailed
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser
 
 
 class AuthPlugin(HttpProxyBasePlugin):

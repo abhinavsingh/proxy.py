@@ -15,8 +15,8 @@
 """
 from typing import Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser
 
 
 class ModifyPostDataPlugin(HttpProxyBasePlugin):

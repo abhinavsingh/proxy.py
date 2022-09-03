@@ -17,15 +17,15 @@ import logging
 import threading
 from typing import TYPE_CHECKING, Any, List, Optional, cast
 
-from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
-from .core.work import ThreadlessPool
-from .core.event import EventManager
-from .common.flag import FlagParser, flags
-from .common.utils import bytes_
-from .core.work.fd import RemoteFdExecutor
-from .core.acceptor import AcceptorPool
-from .core.listener import ListenerPool
-from .common.constants import (
+from proxy.core.ssh import SshTunnelListener, SshHttpProtocolHandler
+from proxy.core.work import ThreadlessPool
+from proxy.core.event import EventManager
+from proxy.common.flag import FlagParser, flags
+from proxy.common.utils import bytes_
+from proxy.core.work.fd import RemoteFdExecutor
+from proxy.core.acceptor import AcceptorPool
+from proxy.core.listener import ListenerPool
+from proxy.common.constants import (
     IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
     DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,

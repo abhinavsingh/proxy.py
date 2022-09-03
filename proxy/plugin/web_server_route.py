@@ -16,10 +16,10 @@
 import logging
 from typing import List, Tuple
 
-from ..http.parser import HttpParser
-from ..http.server import HttpWebServerBasePlugin, httpProtocolTypes
-from ..http.responses import okResponse
-from ..http.websocket.frame import WebsocketFrame
+from proxy.http.parser import HttpParser
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.http.responses import okResponse
+from proxy.http.websocket.frame import WebsocketFrame
 
 
 logger = logging.getLogger(__name__)

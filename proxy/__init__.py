@@ -8,8 +8,8 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .proxy import Proxy, main, sleep_loop, entry_point
-from .testing import TestCase
+from proxy.proxy import Proxy, main, sleep_loop, entry_point
+from proxy.testing import TestCase
 
 
 __all__ = [

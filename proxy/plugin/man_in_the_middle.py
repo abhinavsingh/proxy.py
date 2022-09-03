@@ -10,8 +10,8 @@
 """
 from typing import Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..http.responses import okResponse
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.responses import okResponse
 
 
 class ManInTheMiddlePlugin(HttpProxyBasePlugin):

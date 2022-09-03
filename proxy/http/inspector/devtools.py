@@ -16,14 +16,14 @@ import json
 import logging
 from typing import Any, Dict, List, Tuple
 
-from ..parser import HttpParser
-from ..server import HttpWebServerBasePlugin, httpProtocolTypes
-from ..websocket import WebsocketFrame, websocketOpcodes
-from .transformer import CoreEventsToDevtoolsProtocol
-from ...core.event import EventSubscriber
-from ...common.flag import flags
-from ...common.utils import text_, bytes_
-from ...common.constants import (
+from proxy.http.parser import HttpParser
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.http.websocket import WebsocketFrame, websocketOpcodes
+from proxy.http.inspector.transformer import CoreEventsToDevtoolsProtocol
+from proxy.core.event import EventSubscriber
+from proxy.common.flag import flags
+from proxy.common.utils import text_, bytes_
+from proxy.common.constants import (
     DEFAULT_ENABLE_DEVTOOLS, DEFAULT_DEVTOOLS_DOC_URL,
     DEFAULT_DEVTOOLS_WS_PATH,
 )

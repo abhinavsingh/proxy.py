@@ -14,18 +14,18 @@ import socket
 import logging
 from typing import Any, Dict, List, Tuple, Union, Pattern, Optional
 
-from .plugin import HttpWebServerBasePlugin
-from ..parser import HttpParser, httpParserTypes
-from ..plugin import HttpProtocolHandlerPlugin
-from .protocols import httpProtocolTypes
-from ..exception import HttpProtocolException
-from ..protocols import httpProtocols
-from ..responses import NOT_FOUND_RESPONSE_PKT
-from ..websocket import WebsocketFrame, websocketOpcodes
-from ...common.flag import flags
-from ...common.types import Readables, Writables, Descriptors
-from ...common.utils import text_, build_websocket_handshake_response
-from ...common.constants import (
+from proxy.http.server.plugin import HttpWebServerBasePlugin
+from proxy.http.parser import HttpParser, httpParserTypes
+from proxy.http.plugin import HttpProtocolHandlerPlugin
+from proxy.http.server.protocols import httpProtocolTypes
+from proxy.http.exception import HttpProtocolException
+from proxy.http.protocols import httpProtocols
+from proxy.http.responses import NOT_FOUND_RESPONSE_PKT
+from proxy.http.websocket import WebsocketFrame, websocketOpcodes
+from proxy.common.flag import flags
+from proxy.common.types import Readables, Writables, Descriptors
+from proxy.common.utils import text_, build_websocket_handshake_response
+from proxy.common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
     DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
     DEFAULT_WEB_ACCESS_LOG_FORMAT, DEFAULT_MIN_COMPRESSION_LENGTH,

@@ -12,10 +12,10 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Dict
 
-from ..websocket import WebsocketFrame
-from ...core.event import eventNames
-from ...common.utils import bytes_
-from ...common.constants import (
+from proxy.http.websocket import WebsocketFrame
+from proxy.core.event import eventNames
+from proxy.common.utils import bytes_
+from proxy.common.constants import (
     PROXY_PY_START_TIME, DEFAULT_DEVTOOLS_DOC_URL, DEFAULT_DEVTOOLS_FRAME_ID,
     DEFAULT_DEVTOOLS_LOADER_ID,
 )

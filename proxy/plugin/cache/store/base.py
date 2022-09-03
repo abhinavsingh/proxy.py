@@ -11,7 +11,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ....http.parser import HttpParser
+from proxy.http.parser import HttpParser
 
 
 class CacheStore(ABC):

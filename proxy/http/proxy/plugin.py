@@ -12,11 +12,11 @@ import argparse
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Dict, Tuple, Optional
 
-from ..parser import HttpParser
-from ..connection import HttpClientConnection
-from ...core.event import EventQueue
-from ..descriptors import DescriptorsHandlerMixin
-from ...common.utils import tls_interception_enabled
+from proxy.http.parser import HttpParser
+from proxy.http.connection import HttpClientConnection
+from proxy.core.event import EventQueue
+from proxy.http.descriptors import DescriptorsHandlerMixin
+from proxy.common.utils import tls_interception_enabled
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -24,7 +24,7 @@ if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import UpstreamConnectionPool
 
 
-class HttpProxyBasePlugin(
+class HttpProxyBasePlugin(  # noqa: B024
         DescriptorsHandlerMixin,
         ABC,
 ):

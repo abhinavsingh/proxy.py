@@ -8,10 +8,10 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .client import SocksClientConnection
-from .packet import Socks4Packet
-from .handler import SocksProtocolHandler
-from .operations import Socks4Operations, socks4Operations
+from proxy.socks.client import SocksClientConnection
+from proxy.socks.packet import Socks4Packet
+from proxy.socks.handler import SocksProtocolHandler
+from proxy.socks.operations import Socks4Operations, socks4Operations
 
 
 __all__ = [

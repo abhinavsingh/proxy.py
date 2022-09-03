@@ -11,9 +11,9 @@
 import gzip
 from typing import Any, Dict, Optional
 
-from .codes import httpStatusCodes
-from ..common.utils import build_http_response
-from ..common.constants import (
+from proxy.http.codes import httpStatusCodes
+from proxy.common.utils import build_http_response
+from proxy.common.constants import (
     PROXY_AGENT_HEADER_KEY, PROXY_AGENT_HEADER_VALUE,
     DEFAULT_MIN_COMPRESSION_LENGTH,
 )

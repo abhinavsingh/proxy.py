@@ -12,10 +12,10 @@ import os
 import subprocess
 from typing import Any, Dict, Optional
 
-from ..http.proxy import HttpProxyBasePlugin
-from ..http.parser import HttpParser
-from ..common.utils import text_
-from ..common.constants import IS_WINDOWS
+from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.parser import HttpParser
+from proxy.common.utils import text_
+from proxy.common.constants import IS_WINDOWS
 
 
 class ProgramNamePlugin(HttpProxyBasePlugin):

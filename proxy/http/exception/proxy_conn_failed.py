@@ -14,8 +14,8 @@
 """
 from typing import TYPE_CHECKING, Any
 
-from .base import HttpProtocolException
-from ..responses import BAD_GATEWAY_RESPONSE_PKT
+from proxy.http.exception.base import HttpProtocolException
+from proxy.http.responses import BAD_GATEWAY_RESPONSE_PKT
 
 
 if TYPE_CHECKING:   # pragma: no cover

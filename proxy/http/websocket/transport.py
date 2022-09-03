@@ -12,11 +12,11 @@ import json
 import logging
 from typing import Any, Dict, List, Tuple
 
-from .frame import WebsocketFrame
-from .plugin import WebSocketTransportBasePlugin
-from ..parser import HttpParser
-from ..server import HttpWebServerBasePlugin, httpProtocolTypes
-from ...common.utils import bytes_
+from proxy.http.websocket.frame import WebsocketFrame
+from proxy.http.websocket.plugin import WebSocketTransportBasePlugin
+from proxy.http.parser import HttpParser
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.common.utils import bytes_
 
 
 logger = logging.getLogger(__name__)
