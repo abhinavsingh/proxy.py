@@ -86,6 +86,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         self.choice.hostname,
                     ),
                     as_non_blocking=True,
+                    ca_file=self.flags.ca_file,
                 )
             request.path = self.choice.remainder
             self.upstream.queue(memoryview(request.build()))
