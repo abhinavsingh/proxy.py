@@ -234,6 +234,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                     logger.warning(
                         'Exception when receiving from %s connection#%d with reason %r' %
                         (self.work.tag, self.work.connection.fileno(), e),
+                        exc_info=True
                     )
                 return True
         return False

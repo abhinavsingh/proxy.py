@@ -81,6 +81,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
         try:
             self.upstream.connect()
             if self.choice.scheme == HTTPS_PROTO:
+                print(f"=-=-=-=-=-=-=-=-=-=-=- {self.flags.ca_file}")
                 self.upstream.wrap(
                     text_(
                         self.choice.hostname,
