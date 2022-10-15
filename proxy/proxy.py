@@ -137,6 +137,14 @@ flags.add_argument(
     help='Default: None. Save "parent" process ID to a file.',
 )
 
+flags.add_argument(
+    '--openssl',
+    type=str,
+    default='openssl',
+    help='Default: openssl. Path to openssl binary. ' +
+    'By default, assumption is that openssl is in your PATH.',
+)
+
 
 class Proxy:
     """Proxy is a context manager to control proxy.py library core.

@@ -13,8 +13,8 @@ import mimetypes
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, Optional
 
-from proxy.http.url import Url
 from ..parser import HttpParser
+from ...http.url import Url
 from ..responses import NOT_FOUND_RESPONSE_PKT, okResponse
 from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
@@ -128,6 +128,20 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
 class ReverseProxyBasePlugin(ABC):
     """ReverseProxy base plugin class."""
 
+    def __init__(
+            self,
+            uid: str,
+            flags: argparse.Namespace,
+            client: HttpClientConnection,
+            event_queue: EventQueue,
+            upstream_conn_pool: Optional['UpstreamConnectionPool'] = None,
+    ):
+        self.uid = uid
+        self.flags = flags
+        self.client = client
+        self.event_queue = event_queue
+        self.upstream_conn_pool = upstream_conn_pool
+
     @abstractmethod
     def routes(self) -> List[Union[str, Tuple[str, List[bytes]]]]:
         """List of routes registered by plugin.
@@ -146,6 +160,12 @@ class ReverseProxyBasePlugin(ABC):
         To handle dynamic routes, you must implement the `handle_route` method, which
         must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
+
+    def before_routing(self, request: HttpParser) -> Optional[HttpParser]:
+        """Plugins can modify request, return response, close connection.
+
+        If None is returned, request will be dropped and closed."""
+        return request  # pragma: no cover
 
     def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
         """Implement this method if you have configured dynamic routes."""

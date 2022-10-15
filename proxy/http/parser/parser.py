@@ -357,7 +357,7 @@ class HttpParser:
         #
         # See TestHttpParser.test_issue_398 scenario
         self.state = httpParserStates.RCVING_BODY
-        self.body = raw
+        self.body = bytes(raw)
         return False, memoryview(b'')
 
     def _process_headers(self, raw: memoryview) -> Tuple[bool, memoryview]:

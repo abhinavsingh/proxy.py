@@ -54,6 +54,7 @@
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
     - [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
     - [Cache Responses Plugin](#cacheresponsesplugin)
+    - [Cache By Response Type](#cachebyresponsetype)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [Filter By Client IP Plugin](#filterbyclientipplugin)
@@ -116,6 +117,8 @@
 - [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
   - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
+  - [Managing states for your stateless plugins](#managing-states-for-your-stateless-plugins)
+  - [Passing processing context between plugins](#passing-processing-context-between-plugins)
   - [Internal Documentation](#internal-documentation)
     - [Read The Doc](#read-the-doc)
     - [pydoc](#pydoc)
@@ -777,6 +780,28 @@ Connection: keep-alive
   "url": "https://httpbin.org/get"
 }
 ```
+
+### CacheByResponseType
+
+`CacheResponsesPlugin` plugin can also automatically cache responses by `content-type`.
+To try this, you must be running under [TLS Interception](#tls-interception) mode
+and then pass `--cache-by-content-type` flag.  Example:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.CacheResponsesPlugin \
+    --cache-by-content-type \
+    --ca-key-file ca-key.pem \
+    --ca-cert-file ca-cert.pem \
+    --ca-signing-key ca-signing-key.pem
+```
+
+Make a few requests to the proxy server and you shall see data under `~/.proxy/cache` directory.
+
+You should see 2 folders:
+
+- `content`: Contains parsed `jpg`, `css`, `js`, `html`, `pdf` etc by content type
+- `responses`: Contains raw responses as received _(of-course decrypted because of interception)_
 
 ### ManInTheMiddlePlugin
 
@@ -1694,26 +1719,28 @@ Use `proxy.common.pki` module for:
 3. Signing CSR requests using custom CA.
 
 ```console
-python -m proxy.common.pki -h
-usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
-              [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
+❯ python -m proxy.common.pki -h
+usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH] [--public-key-path PUBLIC_KEY_PATH]
+              [--subject SUBJECT] [--csr-path CSR_PATH] [--crt-path CRT_PATH] [--hostname HOSTNAME] [--openssl OPENSSL]
               action
 
-proxy.py v2.2.0 : PKI Utility
+proxy.py v2.4.4rc2.dev12+gdc06ea4 : PKI Utility
 
 positional arguments:
-  action                Valid actions: remove_passphrase, gen_private_key,
-                        gen_public_key, gen_csr, sign_csr
+  action                Valid actions: remove_passphrase, gen_private_key, gen_public_key, gen_csr, sign_csr
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --password PASSWORD   Password to use for encryption. Default: proxy.py
   --private-key-path PRIVATE_KEY_PATH
                         Private key path
   --public-key-path PUBLIC_KEY_PATH
                         Public key path
-  --subject SUBJECT     Subject to use for public key generation. Default:
-                        /CN=example.com
+  --subject SUBJECT     Subject to use for public key generation. Default: /CN=localhost
+  --csr-path CSR_PATH   CSR file path. Use with gen_csr and sign_csr action.
+  --crt-path CRT_PATH   Signed certificate path. Use with sign_csr action.
+  --hostname HOSTNAME   Alternative subject names to use during CSR signing.
+  --openssl OPENSSL     Path to openssl binary. By default, we assume openssl is in your PATH
 ```
 
 ## Internal Documentation
@@ -2217,6 +2244,28 @@ Within `proxy.py` everything is a plugin.
 - There also is a `--disable-http-proxy` flag. It disables inbuilt proxy server.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
   http(s) server.
+
+## Managing states for your stateless plugins
+
+Plugin class instances are created per-request.  Most importantly,
+plugin instances are created within CPU core context where the request
+was received.
+
+For above reason, global variables in your plugins may work as expected.
+Your plugin code by design must be **stateless**.
+
+To manage global states, you have a couple of options:
+1) Make use of Python's [multiprocessing safe data structures](https://python.readthedocs.io/en/latest/library/multiprocessing.html#sharing-state-between-processes)
+2) Make use of `proxy.py` in-built [eventing mechanism](https://github.com/abhinavsingh/proxy.py/blob/develop/tutorial/eventing.ipynb)
+
+## Passing processing context between plugins
+
+Sometimes, a plugin may need to pass additional context to other plugins after them in the processing chain.  Example, this additional
+context can also be dumped as part of access logs.
+
+To pass processing context, make use of plugin's `on_access_log` method.  See how [Program Name](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/program_name.py) plugin modifies default `client_ip` key in the context and updates it to detected program name.
+
+As a result, when we enable [Program Name Plugin](#programnameplugin), we see local client program name instead of IP address in the access logs.
 
 ## Development Guide
 
