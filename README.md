@@ -467,16 +467,7 @@ To start `proxy.py` from source code follow these instructions:
 
   ```console
   ❯ make lib-dep
-  ```
-
-- Generate `proxy/common/_scm_version.py`
-
-  NOTE: *Following step is not necessary for editable installs.*
-
-  This file writes SCM detected version to `proxy/common/_scm_version.py` file.
-
-  ```console
-  ❯ ./write-scm-version.sh
+  ❯ pip install -e .
   ```
 
 - Optionally, run tests

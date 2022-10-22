@@ -732,7 +732,7 @@ jobs:
         make lib-dep
     - name: Run essentials
       run: |
-        ./write-scm-version.sh
+        pip3 install -e .
         python3 check.py
         make https-certificates
         make sign-https-certificates
