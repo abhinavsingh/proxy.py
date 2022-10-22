@@ -2342,7 +2342,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
-          [--work-klass WORK_KLASS] [--pid-file PID_FILE]
+          [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
           [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
           [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE]
@@ -2364,9 +2364,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.3.dev14+gc6b2de6.d20220605
+proxy.py v2.4.4rc4.dev6+g4ee982a.d20221022
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --tunnel-hostname TUNNEL_HOSTNAME
                         Default: None. Remote hostname or IP address to which
@@ -2383,11 +2383,11 @@ optional arguments:
   --tunnel-remote-port TUNNEL_REMOTE_PORT
                         Default: 8899. Remote port which will be forwarded
                         locally for proxy.
-  --threadless          Default: False. Enabled by default on Python 3.8+
-                        (mac, linux). When disabled a new thread is spawned to
+  --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
+                        linux). When disabled a new thread is spawned to
                         handle each client connection.
-  --threaded            Default: True. Disabled by default on Python < 3.8 and
-                        windows. When enabled a new thread is spawned to
+  --threaded            Default: False. Disabled by default on Python < 3.8
+                        and windows. When enabled a new thread is spawned to
                         handle each client connection.
   --num-workers NUM_WORKERS
                         Defaults to number of CPU cores.
@@ -2441,6 +2441,8 @@ optional arguments:
                         Default: proxy.http.HttpProtocolHandler. Work klass to
                         use for work execution.
   --pid-file PID_FILE   Default: None. Save "parent" process ID to a file.
+  --openssl OPENSSL     Default: openssl. Path to openssl binary. By default,
+                        assumption is that openssl is in your PATH.
   --enable-proxy-protocol
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.
@@ -2483,8 +2485,8 @@ optional arguments:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv373/lib/
-                        python3.7/site-packages/certifi/cacert.pem. Provide
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv/lib/py
+                        thon3.10/site-packages/certifi/cacert.pem. Provide
                         path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
