@@ -59,7 +59,7 @@ pytest-mock==3.10.0
 pytest-xdist==2.5.0
 python-coveralls==2.9.3
 pytoolconfig==1.2.2
-PyYAML==6.0
+PyYAML
 readme-renderer==37.2
 requests==2.28.1
 requests-toolbelt==0.10.0
