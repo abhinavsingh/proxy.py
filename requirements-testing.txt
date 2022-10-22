@@ -79,7 +79,6 @@ types-setuptools==65.5.0.1
 types-urllib3==1.26.25.1
 typing_extensions==4.4.0
 urllib3==1.26.12
-virtualenv==20.16.5
 webencodings==0.5.1
 wrapt==1.14.1
 zipp==3.9.0
