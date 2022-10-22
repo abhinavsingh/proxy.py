@@ -716,7 +716,7 @@ jobs:
     name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu, macOS, windows]
+        os: [ubuntu, macOS, Windows]
         python: ['3.10', '3.6', '3.9', '3.8', '3.7']
       fail-fast: false
     steps:
@@ -734,9 +734,15 @@ jobs:
       run: |
         pip3 install -e .
         python3 check.py
+    - name: Make certificates
+      # Skip building certificates on Windows + Python 3.6
+      if: matrix.os != 'Windows' && matrix.python != '3.6'
+      run: |
         make https-certificates
         make sign-https-certificates
         make ca-certificates
+    - name: Check version
+      run: |
         python3 -m proxy --version
 
   ghcr-latest:
