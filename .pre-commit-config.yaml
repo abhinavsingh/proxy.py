@@ -156,11 +156,11 @@ repos:
   hooks:
   - id: mypy
     additional_dependencies:
-    - paramiko == 2.11.0
-    - types-paramiko == 2.7.3
-    - types-requests==2.27.30
-    - cryptography==36.0.2; python_version <= '3.6'
-    - types-setuptools == 57.4.2
+    - paramiko==2.11.0
+    - types-paramiko==2.11.6
+    - types-requests==2.28.11.2
+    - cryptography==38.0.1; python_version <= '3.6'
+    - types-setuptools==65.5.0.1
     args:
     # FIXME: get rid of missing imports ignore
     - --ignore-missing-imports

@@ -1,2 +1,2 @@
-setuptools-scm == 6.3.2
-twine==3.8.0
+setuptools-scm==7.0.5
+twine==4.0.1
