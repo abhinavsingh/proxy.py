@@ -1,2 +1,4 @@
-setuptools-scm==7.0.5
-twine==4.0.1
+setuptools-scm==7.0.5; python_version > '3.6'
+setuptools-scm==6.4.2; python_version == '3.6'
+twine==4.0.1; python_version > '3.6'
+twine==3.8.0; python_version == '3.6'
