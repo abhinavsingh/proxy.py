@@ -22,7 +22,7 @@ from .version import __version__
 
 
 SYS_PLATFORM = platform.system()
-IS_WINDOWS = SYS_PLATFORM == 'Windows'
+IS_WINDOWS = SYS_PLATFORM.lower() in ('windows', 'cygwin')
 
 
 def _env_threadless_compliant() -> bool:

@@ -62,10 +62,11 @@ def remove_passphrase(
         password: str,
         key_out_path: str,
         timeout: int = 10,
+        openssl: str = 'openssl',
 ) -> bool:
     """Remove passphrase from a private key."""
     command = [
-        'openssl', 'rsa',
+        openssl, 'rsa',
         '-passin', 'pass:%s' % password,
         '-in', key_in_path,
         '-out', key_out_path,
@@ -78,10 +79,11 @@ def gen_private_key(
         password: str,
         bits: int = 2048,
         timeout: int = 10,
+        openssl: str = 'openssl',
 ) -> bool:
     """Generates a private key."""
     command = [
-        'openssl', 'genrsa', '-aes256',
+        openssl, 'genrsa', '-aes256',
         '-passout', 'pass:%s' % password,
         '-out', key_path, str(bits),
     ]
@@ -97,11 +99,12 @@ def gen_public_key(
         extended_key_usage: Optional[str] = None,
         validity_in_days: int = 365,
         timeout: int = 10,
+        openssl: str = 'openssl',
 ) -> bool:
     """For a given private key, generates a corresponding public key."""
     with ssl_config(alt_subj_names, extended_key_usage) as (config_path, has_extension):
         command = [
-            'openssl', 'req', '-new', '-x509', '-sha256',
+            openssl, 'req', '-new', '-x509', '-sha256',
             '-days', str(validity_in_days), '-subj', subject,
             '-passin', 'pass:%s' % private_key_password,
             '-config', config_path,
@@ -120,10 +123,11 @@ def gen_csr(
         password: str,
         crt_path: str,
         timeout: int = 10,
+        openssl: str = 'openssl',
 ) -> bool:
     """Generates a CSR based upon existing certificate and key file."""
     command = [
-        'openssl', 'x509', '-x509toreq',
+        openssl, 'x509', '-x509toreq',
         '-passin', 'pass:%s' % password,
         '-in', crt_path, '-signkey', key_path,
         '-out', csr_path,
@@ -142,11 +146,12 @@ def sign_csr(
         extended_key_usage: Optional[str] = None,
         validity_in_days: int = 365,
         timeout: int = 10,
+        openssl: str = 'openssl',
 ) -> bool:
     """Sign a CSR using CA key and certificate."""
     with ext_file(alt_subj_names, extended_key_usage) as extension_path:
         command = [
-            'openssl', 'x509', '-req', '-sha256',
+            openssl, 'x509', '-req', '-sha256',
             '-CA', ca_crt_path,
             '-CAkey', ca_key_path,
             '-passin', 'pass:%s' % ca_key_password,
@@ -288,6 +293,12 @@ if __name__ == '__main__':
         default=None,
         help='Alternative subject names to use during CSR signing.',
     )
+    parser.add_argument(
+        '--openssl',
+        type=str,
+        default='openssl',
+        help='Path to openssl binary.  By default, we assume openssl is in your PATH',
+    )
     args = parser.parse_args(sys.argv[1:])
 
     # Validation
@@ -310,16 +321,19 @@ if __name__ == '__main__':
 
     # Execute
     if args.action == 'gen_private_key':
-        gen_private_key(args.private_key_path, args.password)
+        gen_private_key(
+            args.private_key_path,
+            args.password, openssl=args.openssl,
+        )
     elif args.action == 'gen_public_key':
         gen_public_key(
             args.public_key_path, args.private_key_path,
-            args.password, args.subject,
+            args.password, args.subject, openssl=args.openssl,
         )
     elif args.action == 'remove_passphrase':
         remove_passphrase(
             args.private_key_path, args.password,
-            args.private_key_path,
+            args.private_key_path, openssl=args.openssl,
         )
     elif args.action == 'gen_csr':
         gen_csr(
@@ -327,9 +341,11 @@ if __name__ == '__main__':
             args.private_key_path,
             args.password,
             args.public_key_path,
+            openssl=args.openssl,
         )
     elif args.action == 'sign_csr':
         sign_csr(
             args.csr_path, args.crt_path, args.private_key_path, args.password,
             args.public_key_path, str(int(time.time())), alt_subj_names=[args.hostname],
+            openssl=args.openssl,
         )

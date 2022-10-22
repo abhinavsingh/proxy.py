@@ -35,7 +35,6 @@ class ProgramNamePlugin(HttpProxyBasePlugin):
             raise NotImplementedError()
         assert self.client.addr
         if self.client.addr[0] in ('::1', '127.0.0.1'):
-            assert self.client.addr
             port = self.client.addr[1]
             ls = subprocess.Popen(
                 ('lsof', '-i', '-P', '-n'),

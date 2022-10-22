@@ -1,2 +1,2 @@
 setuptools-scm == 6.3.2
-twine==3.7.1
+twine==3.8.0

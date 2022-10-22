@@ -54,6 +54,7 @@
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
     - [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
     - [Cache Responses Plugin](#cacheresponsesplugin)
+    - [Cache By Response Type](#cachebyresponsetype)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [Filter By Client IP Plugin](#filterbyclientipplugin)
@@ -116,6 +117,8 @@
 - [Plugin Developer and Contributor Guide](#plugin-developer-and-contributor-guide)
   - [High level architecture](#high-level-architecture)
   - [Everything is a plugin](#everything-is-a-plugin)
+  - [Managing states for your stateless plugins](#managing-states-for-your-stateless-plugins)
+  - [Passing processing context between plugins](#passing-processing-context-between-plugins)
   - [Internal Documentation](#internal-documentation)
     - [Read The Doc](#read-the-doc)
     - [pydoc](#pydoc)
@@ -124,6 +127,7 @@
     - [Setup Local Environment](#setup-local-environment)
     - [Setup Git Hooks](#setup-git-hooks)
     - [Sending a Pull Request](#sending-a-pull-request)
+- [Projects Using Proxy.Py](#projects-using-proxypy)
 - [Benchmarks](#benchmarks)
 - [Flags](#flags)
 - [Changelog](https://proxypy.rtfd.io/en/latest/changelog)
@@ -776,6 +780,28 @@ Connection: keep-alive
   "url": "https://httpbin.org/get"
 }
 ```
+
+### CacheByResponseType
+
+`CacheResponsesPlugin` plugin can also automatically cache responses by `content-type`.
+To try this, you must be running under [TLS Interception](#tls-interception) mode
+and then pass `--cache-by-content-type` flag.  Example:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.CacheResponsesPlugin \
+    --cache-by-content-type \
+    --ca-key-file ca-key.pem \
+    --ca-cert-file ca-cert.pem \
+    --ca-signing-key ca-signing-key.pem
+```
+
+Make a few requests to the proxy server and you shall see data under `~/.proxy/cache` directory.
+
+You should see 2 folders:
+
+- `content`: Contains parsed `jpg`, `css`, `js`, `html`, `pdf` etc by content type
+- `responses`: Contains raw responses as received _(of-course decrypted because of interception)_
 
 ### ManInTheMiddlePlugin
 
@@ -1693,26 +1719,28 @@ Use `proxy.common.pki` module for:
 3. Signing CSR requests using custom CA.
 
 ```console
-python -m proxy.common.pki -h
-usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH]
-              [--public-key-path PUBLIC_KEY_PATH] [--subject SUBJECT]
+❯ python -m proxy.common.pki -h
+usage: pki.py [-h] [--password PASSWORD] [--private-key-path PRIVATE_KEY_PATH] [--public-key-path PUBLIC_KEY_PATH]
+              [--subject SUBJECT] [--csr-path CSR_PATH] [--crt-path CRT_PATH] [--hostname HOSTNAME] [--openssl OPENSSL]
               action
 
-proxy.py v2.2.0 : PKI Utility
+proxy.py v2.4.4rc2.dev12+gdc06ea4 : PKI Utility
 
 positional arguments:
-  action                Valid actions: remove_passphrase, gen_private_key,
-                        gen_public_key, gen_csr, sign_csr
+  action                Valid actions: remove_passphrase, gen_private_key, gen_public_key, gen_csr, sign_csr
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --password PASSWORD   Password to use for encryption. Default: proxy.py
   --private-key-path PRIVATE_KEY_PATH
                         Private key path
   --public-key-path PUBLIC_KEY_PATH
                         Public key path
-  --subject SUBJECT     Subject to use for public key generation. Default:
-                        /CN=example.com
+  --subject SUBJECT     Subject to use for public key generation. Default: /CN=localhost
+  --csr-path CSR_PATH   CSR file path. Use with gen_csr and sign_csr action.
+  --crt-path CRT_PATH   Signed certificate path. Use with sign_csr action.
+  --hostname HOSTNAME   Alternative subject names to use during CSR signing.
+  --openssl OPENSSL     Path to openssl binary. By default, we assume openssl is in your PATH
 ```
 
 ## Internal Documentation
@@ -2217,6 +2245,28 @@ Within `proxy.py` everything is a plugin.
   Use this flag with `--enable-web-server` flag to run `proxy.py` as a programmable
   http(s) server.
 
+## Managing states for your stateless plugins
+
+Plugin class instances are created per-request.  Most importantly,
+plugin instances are created within CPU core context where the request
+was received.
+
+For above reason, global variables in your plugins may work as expected.
+Your plugin code by design must be **stateless**.
+
+To manage global states, you have a couple of options:
+1) Make use of Python's [multiprocessing safe data structures](https://python.readthedocs.io/en/latest/library/multiprocessing.html#sharing-state-between-processes)
+2) Make use of `proxy.py` in-built [eventing mechanism](https://github.com/abhinavsingh/proxy.py/blob/develop/tutorial/eventing.ipynb)
+
+## Passing processing context between plugins
+
+Sometimes, a plugin may need to pass additional context to other plugins after them in the processing chain.  Example, this additional
+context can also be dumped as part of access logs.
+
+To pass processing context, make use of plugin's `on_access_log` method.  See how [Program Name](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/program_name.py) plugin modifies default `client_ip` key in the context and updates it to detected program name.
+
+As a result, when we enable [Program Name Plugin](#programnameplugin), we see local client program name instead of IP address in the access logs.
+
 ## Development Guide
 
 ### Setup Local Environment
@@ -2249,6 +2299,21 @@ Every pull request is tested using GitHub actions.
 See [GitHub workflow](https://github.com/abhinavsingh/proxy.py/tree/develop/.github/workflows)
 for list of tests.
 
+# Projects Using Proxy.Py
+
+Some of the projects using `proxy.py`
+
+1. [ray-project](https://github.com/ray-project/ray)
+2. [aio-libs](https://github.com/aio-libs/aiohttp)
+3. [wifipumpkin3](https://github.com/P0cL4bs/wifipumpkin3)
+4. [MerossIot](https://github.com/albertogeniola/MerossIot)
+5. [pyshorteners](https://github.com/ellisonleao/pyshorteners)
+6. [Slack API](https://github.com/slackapi/python-slack-events-api)
+7. [ibeam](https://github.com/Voyz/ibeam)
+8. [PyPaperBot](https://github.com/ferru97/PyPaperBot)
+
+For full list see [used by](https://github.com/abhinavsingh/proxy.py/network/dependents?package_id=UGFja2FnZS01MjQ0MDY5Ng%3D%3D)
+
 # Benchmarks
 
 See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark) directory on how to run benchmark comparisons with other OSS web servers.
@@ -2277,7 +2342,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
-          [--work-klass WORK_KLASS] [--pid-file PID_FILE]
+          [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
           [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
           [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE]
@@ -2295,10 +2360,11 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--pac-file-url-path PAC_FILE_URL_PATH]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
+          [--filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.0rc9.dev12+g558a430.d20220126
+proxy.py v2.4.4rc4.dev6+g4ee982a.d20221022
 
 options:
   -h, --help            show this help message and exit
@@ -2375,6 +2441,8 @@ options:
                         Default: proxy.http.HttpProtocolHandler. Work klass to
                         use for work execution.
   --pid-file PID_FILE   Default: None. Save "parent" process ID to a file.
+  --openssl OPENSSL     Default: openssl. Path to openssl binary. By default,
+                        assumption is that openssl is in your PATH.
   --enable-proxy-protocol
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.
@@ -2417,8 +2485,8 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/venv310/lib/
-                        python3.10/site-packages/certifi/cacert.pem. Provide
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv/lib/py
+                        thon3.10/site-packages/certifi/cacert.pem. Provide
                         path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
@@ -2469,6 +2537,10 @@ options:
   --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
                         Default: Blocks Facebook. Comma separated list of IPv4
                         and IPv6 addresses.
+  --filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE
+                        Default: blacklist. Can be either "whitelist"
+                        (restrict access to specific IPs)or "blacklist" (allow
+                        everything except specific IPs).
   --filtered-client-ips FILTERED_CLIENT_IPS
                         Default: 127.0.0.1,::1. Comma separated list of IPv4
                         and IPv6 addresses.

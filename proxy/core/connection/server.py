@@ -45,15 +45,19 @@ class TcpServerConnection(TcpConnection):
 
     def wrap(
             self,
-            hostname: str,
+            hostname: Optional[str] = None,
             ca_file: Optional[str] = None,
             as_non_blocking: bool = False,
+            # Ref https://github.com/PyCQA/pylint/issues/3691
+            verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED,     # pylint: disable=E1101
     ) -> None:
         ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH, cafile=ca_file,
+            ssl.Purpose.SERVER_AUTH,
+            cafile=ca_file,
         )
         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        ctx.check_hostname = True
+        ctx.check_hostname = hostname is not None
+        ctx.verify_mode = verify_mode
         self.connection.setblocking(True)
         self._conn = ctx.wrap_socket(
             self.connection,
