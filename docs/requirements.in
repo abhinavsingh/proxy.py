@@ -1,6 +1,7 @@
-myst-parser[linkify] == 0.17.2
+myst-parser[linkify] == 0.17.2; python_version > '3.6'
+myst-parser[linkify] == 0.16.1; python_version == '3.6'
 Sphinx == 4.3.2
 setuptools-scm >= 6.3.2
 furo >= 2021.11.15
 sphinxcontrib-apidoc >= 0.3.0
-sphinxcontrib-towncrier >= 0.2.0a0
+sphinxcontrib-towncrier == 0.2.1a0

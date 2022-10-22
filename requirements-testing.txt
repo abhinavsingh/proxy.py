@@ -1,7 +1,8 @@
 anyio==3.6.2
 astroid==2.12.12; python_version > '3.6'
 astroid==2.11.7; python_version == '3.6'
-attrs==22.1.0
+attrs==22.1.0; python_version > '3.6'
+attrs<22,>=19; python_version == '3.6'
 autopep8==1.7.0
 bcrypt==4.0.1
 bleach==5.0.1; python_version > '3.6'
@@ -19,7 +20,7 @@ cryptography==38.0.1; python_version <= '3.6'
 distlib==0.3.6
 docutils
 execnet==1.9.0
-flake8==5.0.4
+flake8
 h11==0.12.0
 h2==4.1.0
 hpack==4.0.0
