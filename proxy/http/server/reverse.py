@@ -13,13 +13,13 @@ import random
 import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Optional
 
-from . import HttpWebServerBasePlugin, httpProtocolTypes
-from .. import Url
-from ..parser import HttpParser
-from ..exception import HttpProtocolException
-from ...core.base import TcpUpstreamConnectionHandler
-from ...common.utils import text_
-from ...common.constants import (
+from proxy.http import Url
+from proxy.core.base import TcpUpstreamConnectionHandler
+from proxy.http.parser import HttpParser
+from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
+from proxy.common.utils import text_
+from proxy.http.exception import HttpProtocolException
+from proxy.common.constants import (
     HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
     DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT,
 )
@@ -99,6 +99,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         self.choice.hostname,
                     ),
                     as_non_blocking=True,
+                    ca_file=self.flags.ca_file,
                 )
             request.path = self.choice.remainder
             self.upstream.queue(memoryview(request.build()))
