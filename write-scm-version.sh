@@ -14,7 +14,7 @@
 # will be re-written.
 
 # Guessed Version 2.3.2.dev146+gad54132.d20211114
-VERSION=$(python -m setuptools_scm --version | \
+VERSION=$(python -m setuptools_scm | \
     # 2.3.2.dev146+gad54132.d20211114
     awk '{print $3}')
 
