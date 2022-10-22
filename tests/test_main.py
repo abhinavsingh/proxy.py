@@ -380,13 +380,13 @@ class TestProxyContextManager(unittest.TestCase):
                 'http://httpbin.org/get', proxies={
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
-                },
+                }, timeout=30,
             )
             self.assertEqual(response.status_code, 200)
             response = requests.get(
                 'https://httpbin.org/get', proxies={
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
-                },
+                }, timeout=30,
             )
             self.assertEqual(response.status_code, 200)
