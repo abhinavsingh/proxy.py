@@ -25,22 +25,22 @@
   },
   "homepage": "https://github.com/abhinavsingh/proxy.py#readme",
   "devDependencies": {
-    "@types/jasmine": "^4.0.3",
+    "@types/jasmine": "^4.3.0",
     "@types/jquery": "^3.5.14",
     "@types/js-cookie": "^3.0.2",
     "@typescript-eslint/eslint-plugin": "^2.34.0",
     "@typescript-eslint/parser": "^2.34.0",
-    "chrome-devtools-frontend": "^1.0.1029149",
+    "chrome-devtools-frontend": "^1.0.1040857",
     "eslint": "^6.8.0",
     "eslint-config-standard": "^14.1.1",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
+    "eslint-plugin-promise": "^4.3.1",
     "eslint-plugin-standard": "^5.0.0",
     "http-server": "^14.1.1",
-    "jasmine": "^4.3.0",
+    "jasmine": "^4.4.0",
     "jasmine-ts": "^0.4.0",
-    "jquery": "^3.6.0",
+    "jquery": "^3.6.1",
     "js-cookie": "^3.0.1",
     "jsdom": "^15.2.1",
     "ncp": "^2.0.0",
@@ -49,7 +49,7 @@
     "rollup-plugin-javascript-obfuscator": "^1.0.4",
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^10.9.1",
-    "typescript": "^4.7.3",
-    "ws": "^8.8.0"
+    "typescript": "^4.8.4",
+    "ws": "^8.9.0"
   }
 }
