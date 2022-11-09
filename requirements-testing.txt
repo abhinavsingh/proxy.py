@@ -22,5 +22,5 @@ hpack==4.0.0
 hyperframe==6.0.1
 pre-commit==2.16.0
 # Types
-types-requests==2.28.8
+types-requests==2.28.11.4
 types-setuptools==64.0.1
