@@ -685,7 +685,7 @@ jobs:
     name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu, windows, macOS]
+        os: [ubuntu-20.04, windows, macOS]
         node: ['10.x', '11.x', '12.x']
       # max-parallel: 4
       fail-fast: false
@@ -716,7 +716,7 @@ jobs:
     name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu, macOS]
+        os: [ubuntu-20.04, macOS]
         python: ['3.10']
       fail-fast: false
     steps:
