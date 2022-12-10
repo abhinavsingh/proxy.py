@@ -447,7 +447,7 @@ jobs:
         # NOTE: to improve the responsiveness. It's nice to see the most
         # NOTE: important results first.
         - '3.10'
-        - 3.6
+        - 3.6.15
         - 3.9
         - 3.8
         - 3.7
