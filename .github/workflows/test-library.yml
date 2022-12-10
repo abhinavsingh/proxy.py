@@ -46,7 +46,7 @@ concurrency:
 jobs:
   pre-setup:
     name: ⚙️ Pre-set global build settings
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     defaults:
       run:
         shell: python
@@ -216,7 +216,7 @@ jobs:
     needs:
     - pre-setup  # transitive, for accessing settings
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     env:
       PY_COLORS: 1
@@ -331,7 +331,7 @@ jobs:
     - build
     - pre-setup  # transitive, for accessing settings
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         toxenv:
@@ -543,7 +543,7 @@ jobs:
         verbose: true
 
   test-container:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       packages: write
     if: success()
@@ -603,7 +603,7 @@ jobs:
         ./tests/integration/test_integration.sh 8899
 
   analyze:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     name: 🛡️ Analyze
     # schedule:
     # - cron: '0 14 * * 1'
@@ -740,7 +740,7 @@ jobs:
         python3 -m proxy --version
 
   ghcr-latest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       packages: write
     if: success()
@@ -822,7 +822,7 @@ jobs:
         -t $LATEST_TAG .
 
   ghcr-openssl:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       packages: write
     if: success()
@@ -902,7 +902,7 @@ jobs:
         -t $LATEST_TAG .
 
   docker-latest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     permissions:
       packages: write
     if: success()
@@ -975,7 +975,7 @@ jobs:
     - ghcr-openssl
     - docker-latest
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - name: Decide whether the needed jobs succeeded or failed
@@ -990,7 +990,7 @@ jobs:
     - pre-setup  # transitive, for accessing settings
     if: >-
       fromJSON(needs.pre-setup.outputs.release-requested)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     environment:
       name: release
@@ -1019,7 +1019,7 @@ jobs:
     if: >-
       fromJSON(needs.pre-setup.outputs.is-untagged-devel)
       || fromJSON(needs.pre-setup.outputs.release-requested)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     environment:
       name: release-testpypi
@@ -1048,7 +1048,7 @@ jobs:
     needs:
     - publish-pypi
     - pre-setup  # transitive, for accessing settings
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - name: Fetch the src snapshot
@@ -1081,7 +1081,7 @@ jobs:
     needs:
     - post-release-repo-update
     - pre-setup  # transitive, for accessing settings
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     permissions:
       contents: write
