@@ -31,6 +31,8 @@ extend-ignore =
   I  # flake8-isort is drunk + we have isort integrated into pre-commit
   B009    # FIXME: `getattr()` called with a constant arg
   B024    # FIXME: is an abstract base class, but it has no abstract methods
+  B027    # Is an empty method in an abstract base class, but has no abstract decorator.
+          # Consider adding @abstractmethod.
   C812    # FIXME: missing trailing comma
   C819    # FIXME: inline trailing comma
   D101
