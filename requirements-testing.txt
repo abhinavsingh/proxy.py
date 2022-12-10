@@ -3,10 +3,10 @@ python-coveralls==2.9.3
 coverage==6.2
 flake8==4.0.1
 pytest==7.2.0
-pytest-cov==3.0.0
-pytest-xdist == 2.5.0
-pytest-mock==3.6.1
-pytest-asyncio==0.16.0
+pytest-cov==4.0.0
+pytest-xdist==3.1.0
+pytest-mock==3.10.0
+pytest-asyncio==0.20.3
 autopep8==1.6.0
 mypy==0.971
 py-spy==0.3.12
