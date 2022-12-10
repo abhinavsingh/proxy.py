@@ -433,15 +433,15 @@ jobs:
     - build
     - pre-setup  # transitive, for accessing settings
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       # max-parallel: 4
       matrix:
         os:
-        - macOS
+        - macOS-latest
         - Ubuntu-20.04
-        - Windows
+        - Windows-latest
         python:
         # NOTE: The latest and the lowest supported Pythons are prioritized
         # NOTE: to improve the responsiveness. It's nice to see the most
@@ -659,11 +659,11 @@ jobs:
       uses: github/codeql-action/analyze@v2
 
   # brew:
-  #   runs-on: ${{ matrix.os }}-latest
+  #   runs-on: ${{ matrix.os }}
   #   name: 🍺 🐍${{ matrix.python }} @ ${{ matrix.os }}
   #   strategy:
   #     matrix:
-  #       os: [macOS]
+  #       os: [macOS-latest]
   #       python: ['3.10']
   #     # max-parallel: 1
   #     fail-fast: false
@@ -681,11 +681,11 @@ jobs:
   #       proxy -h
 
   dashboard:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows, macOS]
+        os: [ubuntu-20.04, windows-latest, macOS-latest]
         node: ['10.x', '11.x', '12.x']
       # max-parallel: 4
       fail-fast: false
@@ -712,11 +712,11 @@ jobs:
         cd ..
 
   developer:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macOS]
+        os: [ubuntu-20.04, macOS-latest]
         python: ['3.10']
       fail-fast: false
     steps:
