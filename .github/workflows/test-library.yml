@@ -440,17 +440,21 @@ jobs:
       matrix:
         os:
         - macOS-latest
-        - Ubuntu-20.04
+        - ubuntu-20.04
         - Windows-latest
         python:
         # NOTE: The latest and the lowest supported Pythons are prioritized
         # NOTE: to improve the responsiveness. It's nice to see the most
         # NOTE: important results first.
-        - '3.10'
+        - '3.11'
         - 3.6
+        # NOTE: Other versions follow here, latest first
+        - '3.10'
         - 3.9
         - 3.8
         - 3.7
+        # NOTE: Alpha versions follow here
+        - '3.12.0-alpha.3'
 
     continue-on-error: >-
       ${{
