@@ -263,7 +263,7 @@ jobs:
         python -m
         pip install
         --user
-        tox
+        tox==3.25.1
 
     - name: Grab the source from Git
       uses: actions/checkout@v3
@@ -388,7 +388,7 @@ jobs:
         python -m
         pip install
         --user
-        tox
+        tox==3.25.1
 
     - name: Grab the source from Git
       uses: actions/checkout@v3
@@ -505,7 +505,7 @@ jobs:
         python -m
         pip install
         --user
-        tox
+        tox==3.25.1
 
     - name: Grab the source from Git
       uses: actions/checkout@v3
