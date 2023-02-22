@@ -418,7 +418,8 @@ class HttpParser:
                 # To avoid a possible attack vector, we raise exception
                 # if parser receives an invalid request line.
                 raise HttpProtocolException(
-                    'Invalid request line %r' % raw.tobytes())
+                    'Invalid request line %r' % raw.tobytes(),
+                )
             parts = line.split(WHITESPACE, 2)
             self.version = parts[0]
             self.code = parts[1]
