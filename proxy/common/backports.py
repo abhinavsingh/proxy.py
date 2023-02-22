@@ -49,7 +49,7 @@ class cached_property:      # pragma: no cover
     for 3.8+.  Hence, we must get rid of this function once proxy.py no longer
     support version older than 3.8.
 
-    .. spelling::
+    .. spelling:word-list::
 
        backports
        getter
