@@ -7,7 +7,7 @@ pytest-cov==3.0.0
 pytest-xdist == 2.5.0
 pytest-mock==3.6.1
 pytest-asyncio==0.16.0
-autopep8==1.6.0
+autopep8==2.0.2
 mypy==0.971
 py-spy==0.3.12
 codecov==2.1.12
