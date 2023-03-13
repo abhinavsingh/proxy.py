@@ -39,7 +39,7 @@ class ThreadlessFdExecutor(Threadless[T]):
         self.works[fileno].publish_event(
             event_name=eventNames.WORK_STARTED,
             event_payload={'fileno': fileno, 'addr': addr},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         try:
             self.works[fileno].initialize()

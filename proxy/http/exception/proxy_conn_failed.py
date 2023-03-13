@@ -29,7 +29,7 @@ class ProxyConnectionFailed(HttpProtocolException):
         self.host: str = host
         self.port: int = port
         self.reason: str = reason
-        super().__init__('%s %s' % (self.__class__.__name__, reason), **kwargs)
+        super().__init__('%s %s' % (self.__class__.__qualname__, reason), **kwargs)
 
     def response(self, _request: 'HttpParser') -> memoryview:
         return BAD_GATEWAY_RESPONSE_PKT

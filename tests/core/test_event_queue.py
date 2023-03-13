@@ -34,7 +34,7 @@ class TestCoreEvent(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         self.assertEqual(
             evq.queue.get(), {
@@ -44,7 +44,7 @@ class TestCoreEvent(unittest.TestCase):
                 'event_timestamp': 1234567,
                 'event_name': eventNames.WORK_STARTED,
                 'event_payload': {'hello': 'events'},
-                'publisher_id': self.__class__.__name__,
+                'publisher_id': self.__class__.__qualname__,
             },
         )
 

@@ -76,14 +76,14 @@ class Plugins:
             # this plugin_ is implementing
             base_klass = None
             for k in mro:
-                if bytes_(k.__name__) in p:
+                if bytes_(k.__qualname__) in p:
                     base_klass = k
                     break
             if base_klass is None:
                 raise ValueError('%s is NOT a valid plugin' % text_(plugin_))
-            if klass not in p[bytes_(base_klass.__name__)]:
-                p[bytes_(base_klass.__name__)].append(klass)
-            logger.info('Loaded plugin %s.%s', module_name, klass.__name__)
+            if klass not in p[bytes_(base_klass.__qualname__)]:
+                p[bytes_(base_klass.__qualname__)].append(klass)
+            logger.info('Loaded plugin %s.%s', module_name, klass.__qualname__)
         # print(p)
         return p
 

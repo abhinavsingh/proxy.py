@@ -83,7 +83,7 @@ class Work(ABC, Generic[T]):
         self.publish_event(
             event_name=eventNames.WORK_FINISHED,
             event_payload={},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
 
     def run(self) -> None:

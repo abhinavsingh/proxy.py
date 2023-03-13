@@ -72,7 +72,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
 
         Defaults to name of the class. This helps plugin developers to directly
         access a specific plugin by its name."""
-        return self.__class__.__name__      # pragma: no cover
+        return self.__class__.__qualname__      # pragma: no cover
 
     @abstractmethod
     def routes(self) -> List[Tuple[int, str]]:

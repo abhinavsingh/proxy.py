@@ -246,7 +246,7 @@ class Acceptor(multiprocessing.Process):
                 conn,
                 addr,
                 event_queue=self.event_queue,
-                publisher_id=self.__class__.__name__,
+                publisher_id=self.__class__.__qualname__,
             )
             # TODO: Move me into target method
             logger.debug(   # pragma: no cover
