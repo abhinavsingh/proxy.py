@@ -13,6 +13,7 @@ import inspect
 import logging
 import importlib
 import itertools
+from types import ModuleType
 from typing import Any, Dict, List, Tuple, Union, Optional
 
 from .utils import text_, bytes_
@@ -90,16 +91,39 @@ class Plugins:
     def importer(plugin: Union[bytes, type]) -> Tuple[type, str]:
         """Import and returns the plugin."""
         if isinstance(plugin, type):
-            return (plugin, '__main__')
+            if inspect.isclass(plugin):
+                return (plugin, plugin.__module__ or '__main__')
+            raise ValueError('%s is not a valid reference to a plugin class' % text_(plugin))
         plugin_ = text_(plugin.strip())
         assert plugin_ != ''
-        module_name, klass_name = plugin_.rsplit(text_(DOT), 1)
-        klass = getattr(
-            importlib.import_module(
-                module_name.replace(
-                    os.path.sep, text_(DOT),
-                ),
-            ),
-            klass_name,
-        )
+        path = plugin_.split(text_(DOT))
+        klass = None
+
+        def locate_klass(klass_module_name: str, klass_path: List[str]) -> Union[type, None]:
+            klass_module_name = klass_module_name.replace(os.path.sep, text_(DOT))
+            try:
+                klass_module = importlib.import_module(klass_module_name)
+            except ModuleNotFoundError:
+                return None
+            klass_container: Union[ModuleType, type] = klass_module
+            for klass_path_part in klass_path:
+                try:
+                    klass_container = getattr(klass_container, klass_path_part)
+                except AttributeError:
+                    return None
+            if not isinstance(klass_container, type) or not inspect.isclass(klass_container):
+                return None
+            return klass_container
+
+        module_name = None
+        for module_name_parts in range(len(path) - 1, 0, -1):
+            module_name = '.'.join(path[0:module_name_parts])
+            klass = locate_klass(module_name, path[module_name_parts:])
+            if klass:
+                break
+        if klass is None:
+            module_name = '__main__'
+            klass = locate_klass(module_name, path)
+        if klass is None or module_name is None:
+            raise ValueError('%s is not resolvable as a plugin class' % text_(plugin))
         return (klass, module_name)

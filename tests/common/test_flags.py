@@ -8,7 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from typing import Dict, List
+from typing import Any, Dict, List
 
 import unittest
 from unittest import mock
@@ -19,6 +19,7 @@ from proxy.common.flag import FlagParser
 from proxy.common.utils import bytes_
 from proxy.common.version import __version__
 from proxy.common.constants import PLUGIN_HTTP_PROXY, PY2_DEPRECATION_MESSAGE
+from . import my_plugins
 
 
 class TestFlags(unittest.TestCase):
@@ -139,6 +140,42 @@ class TestFlags(unittest.TestCase):
                 HttpProxyPlugin,
             ],
         })
+
+    def test_plugin_from_inner_class_by_type(self) -> None:
+        self.flags = FlagParser.initialize(
+            [], plugins=[
+                TestFlags.MyHttpProxyPlugin,
+                my_plugins.MyHttpProxyPlugin,
+                my_plugins.OuterClass.MyHttpProxyPlugin,
+            ],
+        )
+        self.assert_plugins({
+            'HttpProtocolHandlerPlugin': [
+                TestFlags.MyHttpProxyPlugin,
+                my_plugins.MyHttpProxyPlugin,
+                my_plugins.OuterClass.MyHttpProxyPlugin,
+            ],
+        })
+
+    def test_plugin_from_inner_class_by_name(self) -> None:
+        self.flags = FlagParser.initialize(
+            [], plugins=[
+                b'tests.common.test_flags.TestFlags.MyHttpProxyPlugin',
+                b'tests.common.my_plugins.MyHttpProxyPlugin',
+                b'tests.common.my_plugins.OuterClass.MyHttpProxyPlugin',
+            ],
+        )
+        self.assert_plugins({
+            'HttpProtocolHandlerPlugin': [
+                TestFlags.MyHttpProxyPlugin,
+                my_plugins.MyHttpProxyPlugin,
+                my_plugins.OuterClass.MyHttpProxyPlugin,
+            ],
+        })
+
+    class MyHttpProxyPlugin(HttpProxyPlugin):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
 
     def test_basic_auth_flag_is_base64_encoded(self) -> None:
         flags = FlagParser.initialize(['--basic-auth', 'user:pass'])
