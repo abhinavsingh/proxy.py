@@ -381,6 +381,7 @@ class TestProxyContextManager(unittest.TestCase):
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
                 },
+                timeout=60,
             )
             self.assertEqual(response.status_code, 200)
             response = requests.get(
@@ -388,5 +389,6 @@ class TestProxyContextManager(unittest.TestCase):
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
                 },
+                timeout=60,
             )
             self.assertEqual(response.status_code, 200)
