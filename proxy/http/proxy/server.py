@@ -883,7 +883,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 if self.request.method == httpMethods.POST
                 else None,
             },
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
 
     def emit_response_events(self, chunk_size: int) -> None:
@@ -911,7 +911,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                     for k, v in self.response.headers.items()
                 },
             },
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
 
     def emit_response_chunk_received(self, chunk_size: int) -> None:
@@ -925,7 +925,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
                 'chunk_size': chunk_size,
                 'encoded_chunk_size': chunk_size,
             },
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
 
     def emit_response_complete(self) -> None:
@@ -938,7 +938,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             event_payload={
                 'encoded_response_size': self.response.total_size,
             },
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
 
     #

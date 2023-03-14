@@ -50,7 +50,7 @@ class TestEventSubscriber(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         self.dispatcher.run_once()
         self.subscriber.unsubscribe()
@@ -69,6 +69,6 @@ class TestEventSubscriber(unittest.TestCase):
                 'event_timestamp': 1234567,
                 'event_name': eventNames.WORK_STARTED,
                 'event_payload': {'hello': 'events'},
-                'publisher_id': self.__class__.__name__,
+                'publisher_id': self.__class__.__qualname__,
             },
         )

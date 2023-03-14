@@ -28,7 +28,7 @@ class ProxyAuthenticationFailed(HttpProtocolException):
     incoming request doesn't present necessary credentials."""
 
     def __init__(self, **kwargs: Any) -> None:
-        super().__init__(self.__class__.__name__, **kwargs)
+        super().__init__(self.__class__.__qualname__, **kwargs)
 
     def response(self, _request: 'HttpParser') -> memoryview:
         return PROXY_AUTH_FAILED_RESPONSE_PKT

@@ -40,7 +40,7 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         self.dispatcher.run_once()
         with self.assertRaises(queue.Empty):
@@ -64,7 +64,7 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         # consume
         self.dispatcher.run_once()
@@ -79,7 +79,7 @@ class TestEventDispatcher(unittest.TestCase):
                 'event_timestamp': 1234567,
                 'event_name': eventNames.WORK_STARTED,
                 'event_payload': {'hello': 'events'},
-                'publisher_id': self.__class__.__name__,
+                'publisher_id': self.__class__.__qualname__,
             },
         )
         return relay_recv
@@ -101,7 +101,7 @@ class TestEventDispatcher(unittest.TestCase):
             request_id='1234',
             event_name=eventNames.WORK_STARTED,
             event_payload={'hello': 'events'},
-            publisher_id=self.__class__.__name__,
+            publisher_id=self.__class__.__qualname__,
         )
         self.dispatcher.run_once()
         with self.assertRaises(EOFError):

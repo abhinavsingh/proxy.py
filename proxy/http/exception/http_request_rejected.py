@@ -36,7 +36,7 @@ class HttpRequestRejected(HttpProtocolException):
         self.reason: Optional[bytes] = reason
         self.headers: Optional[Dict[bytes, bytes]] = headers
         self.body: Optional[bytes] = body
-        klass_name = self.__class__.__name__
+        klass_name = self.__class__.__qualname__
         super().__init__(
             message='%s %r' % (klass_name, reason)
             if reason
