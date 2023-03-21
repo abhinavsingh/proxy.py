@@ -114,6 +114,8 @@ DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms}ms'
 DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {request_path} -> {upstream_proxy_pass} - {connection_time_ms}ms'
+DEFAULT_LISTENER_POOL_KLASS = 'proxy.core.listener.ListenerPool'
+DEFAULT_ACCEPTOR_POOL_KLASS = 'proxy.core.acceptor.AcceptorPool'
 DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
@@ -127,6 +129,7 @@ DEFAULT_SERVER_RECVBUF_SIZE = DEFAULT_BUFFER_SIZE
 DEFAULT_STATIC_SERVER_DIR = os.path.join(PROXY_PY_DIR, "public")
 DEFAULT_MIN_COMPRESSION_LENGTH = 20  # In bytes
 DEFAULT_THREADLESS = _env_threadless_compliant()
+DEFAULT_THREADLESS_POOL_KLASS = 'proxy.core.work.ThreadlessPool'
 DEFAULT_LOCAL_EXECUTOR = True
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_VERSION = False

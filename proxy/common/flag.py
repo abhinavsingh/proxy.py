@@ -138,6 +138,24 @@ class FlagParser:
             if isinstance(work_klass, str) \
             else work_klass
 
+        # Load acceptor_pool_klass
+        acceptor_pool_klass = opts.get('acceptor_pool_klass', args.acceptor_pool_klass)
+        acceptor_pool_klass = Plugins.importer(bytes_(acceptor_pool_klass))[0] \
+            if isinstance(acceptor_pool_klass, str) \
+            else acceptor_pool_klass
+
+        # Load listener_pool_klass
+        listener_pool_klass = opts.get('listener_pool_klass', args.listener_pool_klass)
+        listener_pool_klass = Plugins.importer(bytes_(listener_pool_klass))[0] \
+            if isinstance(listener_pool_klass, str) \
+            else listener_pool_klass
+
+        # Load threadless_pool_klass
+        threadless_pool_klass = opts.get('threadless_pool_klass', args.threadless_pool_klass)
+        threadless_pool_klass = Plugins.importer(bytes_(threadless_pool_klass))[0] \
+            if isinstance(threadless_pool_klass, str) \
+            else threadless_pool_klass
+
         # TODO: Plugin flag initialization logic must be moved within plugins.
         #
         # Generate auth_code required for basic authentication if enabled
@@ -201,6 +219,8 @@ class FlagParser:
         # def option(t: object, key: str, default: Any) -> Any:
         #     return cast(t, opts.get(key, default))
         args.work_klass = work_klass
+        args.acceptor_pool_klass = acceptor_pool_klass
+        args.listener_pool_klass = listener_pool_klass
         args.plugins = plugins
         args.auth_code = cast(
             Optional[bytes],
@@ -376,6 +396,7 @@ class FlagParser:
         # evaluates to False.
         args.threadless = cast(bool, opts.get('threadless', args.threadless))
         args.threadless = is_threadless(args.threadless, args.threaded)
+        args.threadless_pool_klass = threadless_pool_klass
 
         args.pid_file = cast(
             Optional[str], opts.get(

@@ -13,10 +13,21 @@ from typing import TYPE_CHECKING, Any, List, Type
 
 from .tcp import TcpSocketListener
 from .unix import UnixSocketListener
+from ...common.flag import flags
+from ...common.constants import DEFAULT_LISTENER_POOL_KLASS
 
 
 if TYPE_CHECKING:   # pragma: no cover
     from .base import BaseListener
+
+
+flags.add_argument(
+    '--listener-pool-klass',
+    type=str,
+    default=DEFAULT_LISTENER_POOL_KLASS,
+    help='Default: ' + DEFAULT_LISTENER_POOL_KLASS +
+    '.  Listener pool klass.',
+)
 
 
 class ListenerPool:

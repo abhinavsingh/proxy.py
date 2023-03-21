@@ -199,7 +199,10 @@ class Proxy:
         self._write_pid_file()
         # We setup listeners first because of flags.port override
         # in case of ephemeral port being used
-        self.listeners = ListenerPool(flags=self.flags)
+        self.listeners = cast(
+            'ListenerPool',
+            self.flags.listener_pool_klass(flags=self.flags),
+        )
         self.listeners.setup()
         # Override flags.port to match the actual port
         # we are listening upon.  This is necessary to preserve
@@ -234,20 +237,26 @@ class Proxy:
         # Setup remote executors only if
         # --local-executor mode isn't enabled.
         if self.remote_executors_enabled:
-            self.executors = ThreadlessPool(
-                flags=self.flags,
-                event_queue=event_queue,
-                executor_klass=RemoteFdExecutor,
+            self.executors = cast(
+                'ThreadlessPool',
+                self.flags.threadless_pool_klass(
+                    flags=self.flags,
+                    event_queue=event_queue,
+                    executor_klass=RemoteFdExecutor,
+                ),
             )
             self.executors.setup()
         # Setup acceptors
-        self.acceptors = AcceptorPool(
-            flags=self.flags,
-            listeners=self.listeners,
-            executor_queues=self.executors.work_queues if self.executors else [],
-            executor_pids=self.executors.work_pids if self.executors else [],
-            executor_locks=self.executors.work_locks if self.executors else [],
-            event_queue=event_queue,
+        self.acceptors = cast(
+            'AcceptorPool',
+            self.flags.acceptor_pool_klass(
+                flags=self.flags,
+                listeners=self.listeners,
+                executor_queues=self.executors.work_queues if self.executors else [],
+                executor_pids=self.executors.work_pids if self.executors else [],
+                executor_locks=self.executors.work_locks if self.executors else [],
+                event_queue=event_queue,
+            ),
         )
         self.acceptors.setup()
         # Start SSH tunnel acceptor if enabled

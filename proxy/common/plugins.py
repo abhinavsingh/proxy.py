@@ -111,7 +111,7 @@ class Plugins:
                     klass_container = getattr(klass_container, klass_path_part)
                 except AttributeError:
                     return None
-            if not isinstance(klass_container, type) or not inspect.isclass(klass_container):
+            if not callable(klass_container):
                 return None
             return klass_container
 

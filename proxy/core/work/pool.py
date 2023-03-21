@@ -15,7 +15,9 @@ from typing import TYPE_CHECKING, Any, List, Type, TypeVar, Optional
 from multiprocessing import connection
 
 from ...common.flag import flags
-from ...common.constants import DEFAULT_THREADLESS, DEFAULT_NUM_WORKERS
+from ...common.constants import (
+    DEFAULT_THREADLESS, DEFAULT_NUM_WORKERS, DEFAULT_THREADLESS_POOL_KLASS,
+)
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -52,6 +54,14 @@ flags.add_argument(
     type=int,
     default=DEFAULT_NUM_WORKERS,
     help='Defaults to number of CPU cores.',
+)
+
+flags.add_argument(
+    '--threadless-pool-klass',
+    type=str,
+    default=DEFAULT_THREADLESS_POOL_KLASS,
+    help='Default: ' + DEFAULT_THREADLESS_POOL_KLASS +
+    '.  Threadless pool klass.',
 )
 
 

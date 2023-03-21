@@ -24,7 +24,9 @@ from multiprocessing.reduction import send_handle
 from .acceptor import Acceptor
 from ..listener import ListenerPool
 from ...common.flag import flags
-from ...common.constants import DEFAULT_NUM_ACCEPTORS
+from ...common.constants import (
+    DEFAULT_NUM_ACCEPTORS, DEFAULT_ACCEPTOR_POOL_KLASS,
+)
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -32,6 +34,14 @@ if TYPE_CHECKING:   # pragma: no cover
 
 logger = logging.getLogger(__name__)
 
+
+flags.add_argument(
+    '--acceptor-pool-klass',
+    type=str,
+    default=DEFAULT_ACCEPTOR_POOL_KLASS,
+    help='Default: ' + DEFAULT_ACCEPTOR_POOL_KLASS +
+    '.  Acceptor pool klass.',
+)
 
 flags.add_argument(
     '--num-acceptors',
