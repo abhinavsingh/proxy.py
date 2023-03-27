@@ -11,6 +11,7 @@
     Test the simplest proxy use scenario for smoke.
 """
 import os
+import sys
 import time
 import tempfile
 import subprocess
@@ -130,10 +131,12 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = tuple(
 def _gen_https_certificates(request: Any) -> None:
     run([
         'make', 'https-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
     run([
         'make', 'sign-https-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
 
@@ -142,15 +145,18 @@ def _gen_https_certificates(request: Any) -> None:
 def _gen_ca_certificates(request: Any) -> None:
     run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
     run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CA_CERT_SUFFIX=-chunk',
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
     run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CA_CERT_SUFFIX=-post',
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
@@ -175,7 +181,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     ca_cert_dir = TEMP_DIR / ('certificates-%s' % run_id)
     os.makedirs(ca_cert_dir, exist_ok=True)
     proxy_cmd = (
-        'python', '-m', 'proxy',
+        sys.executable, '-m', 'proxy',
         '--hostname', '127.0.0.1',
         '--port', '0',
         '--port-file', str(port_file),
