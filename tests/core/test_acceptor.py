@@ -8,7 +8,6 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import socket
 import selectors
 import multiprocessing
 
@@ -41,19 +40,23 @@ class TestAcceptor(unittest.TestCase):
         )
 
     @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
+    @mock.patch('socket.socket')
+    @mock.patch('socket.dup')
     @mock.patch('proxy.core.acceptor.acceptor.recv_handle')
     def test_continues_when_no_events(
             self,
             mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
+            mock_socket_dup: mock.Mock,
+            mock_socket: mock.Mock,
             mock_selector: mock.Mock,
     ) -> None:
         fileno = 10
+        mock_socket_dup.side_effect = lambda fd: fd
         conn = mock.MagicMock()
         addr = mock.MagicMock()
-        sock = mock_fromfd.return_value
-        mock_fromfd.return_value.accept.return_value = (conn, addr)
+        sock = mock.MagicMock()
+        sock.accept.return_value = (conn, addr)
+        mock_socket.side_effect = lambda **kwargs: sock if kwargs.get('fileno') == fileno else mock.DEFAULT
         mock_recv_handle.return_value = fileno
 
         selector = mock_selector.return_value
@@ -66,20 +69,24 @@ class TestAcceptor(unittest.TestCase):
 
     @mock.patch('threading.Thread')
     @mock.patch('selectors.DefaultSelector')
-    @mock.patch('socket.fromfd')
+    @mock.patch('socket.dup')
+    @mock.patch('socket.socket')
     @mock.patch('proxy.core.acceptor.acceptor.recv_handle')
     def test_accepts_client_from_server_socket(
             self,
             mock_recv_handle: mock.Mock,
-            mock_fromfd: mock.Mock,
+            mock_socket: mock.Mock,
+            mock_socket_dup: mock.Mock,
             mock_selector: mock.Mock,
             mock_thread: mock.Mock,
     ) -> None:
         fileno = 10
+        mock_socket_dup.side_effect = lambda fd: fd
         conn = mock.MagicMock()
         addr = mock.MagicMock()
-        sock = mock_fromfd.return_value
-        mock_fromfd.return_value.accept.return_value = (conn, addr)
+        sock = mock.MagicMock()
+        sock.accept.return_value = (conn, addr)
+        mock_socket.side_effect = lambda **kwargs: sock if kwargs.get('fileno') == fileno else mock.DEFAULT
         mock_recv_handle.return_value = fileno
 
         self.pipe[1].recv.return_value = 1
@@ -100,10 +107,8 @@ class TestAcceptor(unittest.TestCase):
         )
         selector.unregister.assert_called_with(fileno)
         mock_recv_handle.assert_called_with(self.pipe[1])
-        mock_fromfd.assert_called_with(
-            fileno,
-            family=socket.AF_INET,
-            type=socket.SOCK_STREAM,
+        mock_socket.assert_called_with(
+            fileno=fileno,
         )
         self.flags.work_klass.assert_called_with(
             self.work_klass.create.return_value,

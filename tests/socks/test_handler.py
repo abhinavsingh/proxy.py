@@ -21,12 +21,13 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
 
         self.flags = FlagParser.initialize(threaded=True)
 

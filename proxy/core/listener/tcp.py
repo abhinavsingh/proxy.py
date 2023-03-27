@@ -10,7 +10,8 @@
 """
 import socket
 import logging
-from typing import Any, Optional
+import ipaddress
+from typing import Any, Union, Optional
 
 from .base import BaseListener
 from ...common.flag import flags
@@ -27,6 +28,15 @@ flags.add_argument(
 )
 
 flags.add_argument(
+    '--hostnames',
+    action='append',
+    nargs='+',
+    type=str,
+    default=None,
+    help='Default: None.  Additional IP addresses to listen on.',
+)
+
+flags.add_argument(
     '--port',
     type=int,
     default=DEFAULT_PORT,
@@ -37,6 +47,7 @@ flags.add_argument(
     '--ports',
     action='append',
     nargs='+',
+    type=int,
     default=None,
     help='Default: None.  Additional ports to listen on.',
 )
@@ -54,9 +65,14 @@ logger = logging.getLogger(__name__)
 class TcpSocketListener(BaseListener):
     """Tcp listener."""
 
-    def __init__(self, *args: Any, port: Optional[int] = None, **kwargs: Any) -> None:
-        # Port if passed will be used, otherwise
-        # flag port value will be used.
+    def __init__(
+        self,
+        hostname: Union[ipaddress.IPv4Address, ipaddress.IPv6Address],
+        port: int,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        self.hostname = hostname
         self.port = port
         # Set after binding to a port.
         #
@@ -66,14 +82,13 @@ class TcpSocketListener(BaseListener):
 
     def listen(self) -> socket.socket:
         sock = socket.socket(
-            socket.AF_INET6 if self.flags.hostname.version == 6 else socket.AF_INET,
+            socket.AF_INET6 if self.hostname.version == 6 else socket.AF_INET,
             socket.SOCK_STREAM,
         )
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         # s.setsockopt(socket.SOL_TCP, socket.TCP_FASTOPEN, 5)
-        port = self.port if self.port is not None else self.flags.port
-        sock.bind((str(self.flags.hostname), port))
+        sock.bind((str(self.hostname), self.port))
         sock.listen(self.flags.backlog)
         sock.setblocking(False)
         self._port = sock.getsockname()[1]

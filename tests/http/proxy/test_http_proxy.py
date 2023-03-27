@@ -30,9 +30,12 @@ class TestHttpProxyPlugin:
             'proxy.http.proxy.server.TcpServerConnection',
         )
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup')
 
         self.fileno = 10
+        self.mock_socket_dup.side_effect = lambda fd: fd
+
         self._addr = ('127.0.0.1', 54382)
         self.flags = FlagParser.initialize(threaded=True)
         self.plugin = mocker.MagicMock()
@@ -40,7 +43,9 @@ class TestHttpProxyPlugin:
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.plugin],
         }
-        self._conn = self.mock_fromfd.return_value
+        self._conn = mocker.MagicMock()
+        self.mock_socket.side_effect = \
+            lambda **kwargs: self._conn if kwargs.get('fileno') == self.fileno else mocker.DEFAULT
         self.protocol_handler = HttpProtocolHandler(
             HttpClientConnection(self._conn, self._addr),
             flags=self.flags,

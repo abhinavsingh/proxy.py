@@ -211,16 +211,18 @@ class Proxy:
             )._port
         # --ports flag can also use 0 as value for ephemeral port selection.
         # Here, we override flags.ports to reflect actual listening ports.
-        ports = []
-        offset = 1 if self.flags.unix_socket_path or self.flags.port else 0
+        ports = set()
+        offset = 1 if self.flags.unix_socket_path else 0
         for index in range(offset, offset + len(self.flags.ports)):
-            ports.append(
+            ports.add(
                 cast(
                     'TcpSocketListener',
                     self.listeners.pool[index],
                 )._port,
             )
-        self.flags.ports = ports
+        if self.flags.port in ports:
+            ports.remove(self.flags.port)
+        self.flags.ports = list(ports)
         # Write ports to port file
         self._write_port_file()
         # Setup EventManager
