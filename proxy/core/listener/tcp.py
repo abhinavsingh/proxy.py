@@ -94,6 +94,6 @@ class TcpSocketListener(BaseListener):
         self._port = sock.getsockname()[1]
         logger.info(
             'Listening on %s:%s' %
-            (self.flags.hostname, self._port),
+            (self.hostname, self._port),
         )
         return sock
