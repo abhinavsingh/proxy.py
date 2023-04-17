@@ -11,6 +11,7 @@
     Test the simplest proxy use scenario for smoke.
 """
 import os
+import sys
 import time
 import tempfile
 import subprocess
@@ -18,7 +19,7 @@ from random import random
 from typing import Any, List, Generator
 from pathlib import Path
 from subprocess import Popen
-from subprocess import check_output as _check_output
+from subprocess import run as _run
 
 import pytest
 
@@ -30,9 +31,9 @@ CERT_DIR = TEMP_DIR / 'certificates'
 os.makedirs(CERT_DIR, exist_ok=True)
 
 
-def check_output(args: List[Any]) -> bytes:     # pragma: no cover
+def run(args: List[Any], **kwargs: Any) -> None:
     args = args if not IS_WINDOWS else ['powershell'] + args
-    return _check_output(args)
+    _run(args, check=True, stderr=subprocess.STDOUT, **kwargs)
 
 
 def _https_server_flags() -> str:
@@ -128,29 +129,34 @@ PROXY_PY_FLAGS_MODIFY_POST_DATA_PLUGIN = tuple(
 
 @pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_https_certificates(request: Any) -> None:
-    check_output([
+    run([
         'make', 'https-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
-    check_output([
+    run([
         'make', 'sign-https-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
 
 
 @pytest.fixture(scope='session', autouse=not IS_WINDOWS)  # type: ignore[misc]
 def _gen_ca_certificates(request: Any) -> None:
-    check_output([
+    run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
-    check_output([
+    run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CA_CERT_SUFFIX=-chunk',
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
-    check_output([
+    run([
         'make', 'ca-certificates',
+        '-e', 'PYTHON="%s"' % (sys.executable,),
         '-e', 'CA_CERT_SUFFIX=-post',
         '-e', 'CERT_DIR=%s/' % (str(CERT_DIR)),
     ])
@@ -175,7 +181,7 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     ca_cert_dir = TEMP_DIR / ('certificates-%s' % run_id)
     os.makedirs(ca_cert_dir, exist_ok=True)
     proxy_cmd = (
-        'python', '-m', 'proxy',
+        sys.executable, '-m', 'proxy',
         '--hostname', '127.0.0.1',
         '--port', '0',
         '--port-file', str(port_file),
@@ -190,8 +196,12 @@ def proxy_py_subprocess(request: Any) -> Generator[int, None, None]:
     ) + tuple(request.param.split())
     proxy_proc = Popen(proxy_cmd, stderr=subprocess.STDOUT)
     # Needed because port file might not be available immediately
-    while not port_file.exists():
+    retries = 0
+    while not port_file.exists() and retries < 8:
         time.sleep(1)
+        retries += 1
+    if not port_file.exists():
+        raise RuntimeError('proxy.py failed to boot up')
     try:
         yield int(port_file.read_text())
     finally:
@@ -218,7 +228,9 @@ def test_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test using ``curl`` through proxy.py."""
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
-    check_output([str(shell_script_test), str(proxy_py_subprocess)])
+    print('shell_script_test %s' % shell_script_test)
+    print('proxy_py_subprocess %s' % proxy_py_subprocess)
+    run([str(shell_script_test), str(proxy_py_subprocess)], stdout=sys.stdout.buffer)
 
 
 @pytest.mark.smoke  # type: ignore[misc]
@@ -236,7 +248,7 @@ def test_https_integration(proxy_py_subprocess: int) -> None:
     this_test_module = Path(__file__)
     shell_script_test = this_test_module.with_suffix('.sh')
     # "1" means use-https scheme for requests to instance
-    check_output([str(shell_script_test), str(proxy_py_subprocess), '1'])
+    run([str(shell_script_test), str(proxy_py_subprocess), '1'])
 
 
 @pytest.mark.smoke  # type: ignore[misc]
@@ -252,7 +264,7 @@ def test_https_integration(proxy_py_subprocess: int) -> None:
 def test_integration_with_interception_flags(proxy_py_subprocess: int) -> None:
     """An acceptance test for TLS interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_interception.sh'
-    check_output([
+    run([
         str(shell_script_test),
         str(proxy_py_subprocess),
         str(CERT_DIR),
@@ -273,7 +285,7 @@ def test_modify_chunk_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyChunkResponsePlugin`
     interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_modify_chunk_response.sh'
-    check_output([
+    run([
         str(shell_script_test),
         str(proxy_py_subprocess),
         str(CERT_DIR),
@@ -294,7 +306,7 @@ def test_modify_post_response_integration(proxy_py_subprocess: int) -> None:
     """An acceptance test for :py:class:`~proxy.plugin.ModifyPostDataPlugin`
     interception using ``curl`` through proxy.py."""
     shell_script_test = Path(__file__).parent / 'test_modify_post_data.sh'
-    check_output([
+    run([
         str(shell_script_test),
         str(proxy_py_subprocess),
         str(CERT_DIR),

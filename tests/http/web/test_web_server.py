@@ -41,10 +41,11 @@ PAC_FILE_CONTENT = b'function FindProxyForURL(url, host) { return "PROXY localho
 
 def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
     plugin = mocker.MagicMock()
-    mock_fromfd = mocker.patch('socket.fromfd')
+    mock_socket_dup = mocker.patch('socket.dup')
+    mock_socket_dup.side_effect = lambda fd: fd
     flags = FlagParser.initialize(threaded=True)
     flags.plugins = {b'HttpProtocolHandlerPlugin': [plugin]}
-    _conn = mock_fromfd.return_value
+    _conn = mocker.MagicMock()
     _addr = ('127.0.0.1', 54382)
     protocol_handler = HttpProtocolHandler(
         HttpClientConnection(_conn, _addr),
@@ -141,11 +142,12 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
         ],
     )  # type: ignore[misc]
     def _setUp(self, request: Any, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         self.pac_file = request.param
         if isinstance(self.pac_file, str):
             with open(self.pac_file, 'rb') as f:
@@ -195,11 +197,12 @@ class TestStaticWebServerPlugin(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         # Setup a static directory
         self.static_server_dir = os.path.join(tempfile.gettempdir(), 'static')
         self.index_file_path = os.path.join(
@@ -316,11 +319,12 @@ class TestWebServerPlugin(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         self.flags = FlagParser.initialize(threaded=True)
         self.flags.plugins = Plugins.load([
             bytes_(PLUGIN_HTTP_PROXY),
@@ -334,7 +338,7 @@ class TestWebServerPlugin(Assertions):
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_default_web_server_returns_404(self) -> None:
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         self.mock_selector.return_value.select.return_value = [
             (
                 selectors.SelectorKey(

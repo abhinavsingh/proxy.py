@@ -40,7 +40,8 @@ class TestHttpProxyPluginExamples(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, request: Any, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_conn = mocker.patch(
             'proxy.http.proxy.server.TcpServerConnection',
@@ -66,7 +67,7 @@ class TestHttpProxyPluginExamples(Assertions):
             b'HttpProtocolHandlerPlugin': [HttpProxyPlugin],
             b'HttpProxyBasePlugin': [plugin],
         }
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         self.protocol_handler = HttpProtocolHandler(
             HttpClientConnection(self._conn, self._addr),
             flags=self.flags,

@@ -30,10 +30,7 @@ class ThreadlessFdExecutor(Threadless[T]):
         fileno: int = args[0]
         addr: Optional[HostPort] = args[1]
         conn: Optional[TcpOrTlsSocket] = args[2]
-        conn = conn or socket.fromfd(
-            fileno, family=socket.AF_INET if self.flags.hostname.version == 4 else socket.AF_INET6,
-            type=socket.SOCK_STREAM,
-        )
+        conn = conn or socket.socket(fileno=socket.dup(fileno))  # type: ignore[attr-defined]
         uid = '%s-%s-%s' % (self.iid, self._total, fileno)
         self.works[fileno] = self.create(uid, conn, addr)
         self.works[fileno].publish_event(

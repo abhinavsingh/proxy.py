@@ -39,7 +39,7 @@ class TestHttpProxyTlsInterception(Assertions):
         host, port = uuid.uuid4().hex, 443
         netloc = '{0}:{1}'.format(host, port)
 
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket_dup = mocker.patch('socket.dup')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_sign_csr = mocker.patch('proxy.http.proxy.server.sign_csr')
         self.mock_gen_csr = mocker.patch('proxy.http.proxy.server.gen_csr')
@@ -52,6 +52,9 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_sign_csr.return_value = True
         self.mock_gen_csr.return_value = True
         self.mock_gen_public_key.return_value = True
+
+        self.fileno = 10
+        self.mock_socket_dup.side_effect = lambda fd: fd
 
         # Used for server side wrapping
         self.mock_ssl_context = mocker.patch('ssl.create_default_context')
@@ -82,7 +85,6 @@ class TestHttpProxyTlsInterception(Assertions):
         type(self.mock_server_conn.return_value).closed = \
             mock.PropertyMock(return_value=False)
 
-        self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
         self.flags = FlagParser.initialize(
             ca_cert_file='ca-cert.pem',
@@ -101,7 +103,7 @@ class TestHttpProxyTlsInterception(Assertions):
             b'HttpProtocolHandlerPlugin': [self.plugin, HttpProxyPlugin],
             b'HttpProxyBasePlugin': [self.proxy_plugin],
         }
-        self._conn = self.mock_fromfd.return_value
+        self._conn = mock.MagicMock(spec=socket.socket)
         self.protocol_handler = HttpProtocolHandler(
             HttpClientConnection(self._conn, self._addr),
             flags=self.flags,

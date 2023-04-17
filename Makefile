@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+PYTHON ?= python
 
 NS ?= abhinavsingh
 IMAGE_NAME ?= proxy.py
@@ -40,23 +41,23 @@ all: lib-test
 
 https-certificates:
 	# Generate server key
-	python -m proxy.common.pki gen_private_key \
+	$(PYTHON) -m proxy.common.pki gen_private_key \
 		--private-key-path $(HTTPS_KEY_FILE_PATH)
-	python -m proxy.common.pki remove_passphrase \
+	$(PYTHON) -m proxy.common.pki remove_passphrase \
 		--private-key-path $(HTTPS_KEY_FILE_PATH)
 	# Generate server certificate
-	python -m proxy.common.pki gen_public_key \
+	$(PYTHON) -m proxy.common.pki gen_public_key \
 		--private-key-path $(HTTPS_KEY_FILE_PATH) \
 		--public-key-path $(HTTPS_CERT_FILE_PATH)
 
 sign-https-certificates:
 	# Generate CSR request
-	python -m proxy.common.pki gen_csr \
+	$(PYTHON) -m proxy.common.pki gen_csr \
 		--csr-path $(HTTPS_CSR_FILE_PATH) \
 		--private-key-path $(HTTPS_KEY_FILE_PATH) \
 		--public-key-path $(HTTPS_CERT_FILE_PATH)
 	# Sign CSR with CA
-	python -m proxy.common.pki sign_csr \
+	$(PYTHON) -m proxy.common.pki sign_csr \
 		--csr-path $(HTTPS_CSR_FILE_PATH) \
 		--crt-path $(HTTPS_SIGNED_CERT_FILE_PATH) \
 		--hostname localhost \
@@ -65,23 +66,23 @@ sign-https-certificates:
 
 ca-certificates:
 	# Generate CA key
-	python -m proxy.common.pki gen_private_key \
+	$(PYTHON) -m proxy.common.pki gen_private_key \
 		--private-key-path $(CA_KEY_FILE_PATH)
-	python -m proxy.common.pki remove_passphrase \
+	$(PYTHON) -m proxy.common.pki remove_passphrase \
 		--private-key-path $(CA_KEY_FILE_PATH)
 	# Generate CA certificate
-	python -m proxy.common.pki gen_public_key \
+	$(PYTHON) -m proxy.common.pki gen_public_key \
 		--private-key-path $(CA_KEY_FILE_PATH) \
 		--public-key-path $(CA_CERT_FILE_PATH)
 	# Generate key that will be used to generate domain certificates on the fly
 	# Generated certificates are then signed with CA certificate / key generated above
-	python -m proxy.common.pki gen_private_key \
+	$(PYTHON) -m proxy.common.pki gen_private_key \
 		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
-	python -m proxy.common.pki remove_passphrase \
+	$(PYTHON) -m proxy.common.pki remove_passphrase \
 		--private-key-path $(CA_SIGNING_KEY_FILE_PATH)
 
 lib-check:
-	python check.py
+	$(PYTHON) check.py
 
 lib-clean:
 	find . -name '*.pyc' -exec rm -f {} +
@@ -107,10 +108,10 @@ lib-dep:
 	pip install "setuptools>=42"
 
 lib-pre-commit:
-	python -m pre_commit run --hook-stage manual --all-files -v
+	$(PYTHON) -m pre_commit run --hook-stage manual --all-files -v
 
 lib-lint:
-	python -m tox -e lint
+	$(PYTHON) -m tox -e lint
 
 lib-flake8:
 	tox -e lint -- flake8 --all-files
@@ -119,12 +120,12 @@ lib-mypy:
 	tox -e lint -- mypy --all-files
 
 lib-pytest:
-	python -m tox -e python -- -v
+	$(PYTHON) -m tox -e python -- -v
 
 lib-test: lib-clean lib-check lib-lint lib-pytest
 
 lib-package: lib-clean lib-check
-	python -m tox -e cleanup-dists,build-dists,metadata-validation
+	$(PYTHON) -m tox -e cleanup-dists,build-dists,metadata-validation
 
 lib-release-test: lib-package
 	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
@@ -133,7 +134,7 @@ lib-release: lib-package
 	twine upload dist/*
 
 lib-doc:
-	python -m tox -e build-docs && \
+	$(PYTHON) -m tox -e build-docs && \
 	$(OPEN) .tox/build-docs/docs_out/index.html || true
 
 lib-coverage: lib-clean
@@ -145,7 +146,7 @@ lib-profile:
 	sudo py-spy record \
 		-o profile.svg \
 		-t -F -s -- \
-		python -m proxy \
+		$(PYTHON) -m proxy \
 			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \
@@ -161,7 +162,7 @@ lib-speedscope:
 		-o profile.speedscope.json \
 		-f speedscope \
 		-t -F -s -- \
-		python -m proxy \
+		$(PYTHON) -m proxy \
 			--hostname 127.0.0.1 \
 			--num-acceptors 1 \
 			--num-workers 1 \

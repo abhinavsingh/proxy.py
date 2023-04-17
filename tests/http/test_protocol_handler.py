@@ -52,12 +52,13 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
 
         self.http_server_port = 65535
         self.flags = FlagParser.initialize(threaded=True)
@@ -88,7 +89,7 @@ class TestHttpProtocolHandlerWithoutServerMock(Assertions):
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_proxy_authentication_failed(self) -> None:
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         mock_selector_for_client_read(self)
         flags = FlagParser.initialize(
             auth_code=base64.b64encode(b'user:pass'),
@@ -147,7 +148,8 @@ class TestHttpProtocolHandler(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket = mocker.patch('socket.socket')
+        self.mock_socket_dup = mocker.patch('socket.dup', side_effect=lambda fd: fd)
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_server_connection = mocker.patch(
             'proxy.http.proxy.server.TcpServerConnection',
@@ -155,7 +157,7 @@ class TestHttpProtocolHandler(Assertions):
 
         self.fileno = 10
         self._addr = ('127.0.0.1', 54382)
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
 
         self.http_server_port = 65535
         self.flags = FlagParser.initialize(threaded=True)
@@ -311,7 +313,7 @@ class TestHttpProtocolHandler(Assertions):
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_authenticated_proxy_http_get(self) -> None:
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         mock_selector_for_client_read(self)
 
         server = self.mock_server_connection.return_value
@@ -363,7 +365,7 @@ class TestHttpProtocolHandler(Assertions):
         server = self.mock_server_connection.return_value
         server.connect.return_value = True
         server.buffer_size.return_value = 0
-        self._conn = self.mock_fromfd.return_value
+        self._conn = self.mock_socket.return_value
         self.mock_selector_for_client_read_and_server_write(server)
 
         flags = FlagParser.initialize(

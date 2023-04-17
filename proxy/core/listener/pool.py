@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import argparse
+import itertools
 from typing import TYPE_CHECKING, Any, List, Type
 
 from .tcp import TcpSocketListener
@@ -37,10 +38,12 @@ class ListenerPool:
     def setup(self) -> None:
         if self.flags.unix_socket_path:
             self.add(UnixSocketListener)
-        else:
-            self.add(TcpSocketListener)
-        for port in self.flags.ports:
-            self.add(TcpSocketListener, port=port)
+        hostnames = {self.flags.hostname, *self.flags.hostnames}
+        ports = set(self.flags.ports)
+        if not self.flags.unix_socket_path:
+            ports.add(self.flags.port)
+        for hostname, port in itertools.product(hostnames, ports):
+            self.add(TcpSocketListener, hostname=hostname, port=port)
 
     def shutdown(self) -> None:
         for listener in self.pool:

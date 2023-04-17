@@ -26,8 +26,8 @@ class TestListener(unittest.TestCase):
     @mock.patch('socket.socket')
     def test_setup_and_teardown(self, mock_socket: mock.Mock) -> None:
         sock = mock_socket.return_value
-        flags = FlagParser.initialize(port=0)
-        with TcpSocketListener(flags=flags) as listener:
+        flags = FlagParser.initialize()
+        with TcpSocketListener(flags=flags, hostname=flags.hostname, port=flags.port) as listener:
             mock_socket.assert_called_with(
                 socket.AF_INET6 if flags.hostname.version == 6 else socket.AF_INET,
                 socket.SOCK_STREAM,
@@ -42,7 +42,7 @@ class TestListener(unittest.TestCase):
                 (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1),
             )
             sock.bind.assert_called_with(
-                (str(flags.hostname), 0),
+                (str(flags.hostname), flags.port),
             )
             sock.listen.assert_called_with(flags.backlog)
             sock.setblocking.assert_called_with(False)

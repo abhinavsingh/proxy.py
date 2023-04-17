@@ -11,7 +11,6 @@
 import os
 import sys
 import base64
-import socket
 import argparse
 import ipaddress
 import itertools
@@ -25,7 +24,7 @@ from .logger import Logger
 from .plugins import Plugins
 from .version import __version__
 from .constants import (
-    COMMA, IS_WINDOWS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
+    COMMA, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
     PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
     PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
     DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
@@ -291,24 +290,15 @@ class FlagParser:
             IpAddress,
             opts.get('hostname', ipaddress.ip_address(args.hostname)),
         )
+        hostnames: List[List[str]] = opts.get('hostnames', args.hostnames)
+        args.hostnames = [
+            ipaddress.ip_address(hostname) for hostname in list(
+                itertools.chain.from_iterable([] if hostnames is None else hostnames),
+            )
+        ]
         args.unix_socket_path = opts.get(
             'unix_socket_path', args.unix_socket_path,
         )
-        # AF_UNIX is not available on Windows
-        # See https://bugs.python.org/issue33408
-        if not IS_WINDOWS:
-            args.family = socket.AF_UNIX if args.unix_socket_path else (
-                socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
-            )
-        else:
-            # FIXME: Not true for tests, as this value will be a mock.
-            #
-            # It's a problem only on Windows.  Instead of a proper
-            # fix in the tests, simply commenting this line of assertion
-            # for now.
-            #
-            # assert args.unix_socket_path is None
-            args.family = socket.AF_INET6 if args.hostname.version == 6 else socket.AF_INET
         args.port = cast(int, opts.get('port', args.port))
         ports: List[List[int]] = opts.get('ports', args.ports)
         args.ports = [

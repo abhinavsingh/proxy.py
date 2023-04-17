@@ -213,7 +213,8 @@
     - `--enable-reverse-proxy --plugins proxy.plugin.ReverseProxyPlugin`
   - Plugin API is currently in *development phase*. Expect breaking changes. See [Deploying proxy.py in production](#deploying-proxypy-in-production) on how to ensure reliability across code changes.
 
-- Can listen on multiple ports
+- Can listen on multiple addresses and ports
+  - Use `--hostnames` flag to provide additional addresses
   - Use `--ports` flag to provide additional ports
   - Optionally, use `--port` flag to override default port `8899`
   - Capable of serving multiple protocols over the same port
@@ -2335,8 +2336,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
           [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
           [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--port PORT] [--ports PORTS [PORTS ...]]
-          [--port-file PORT_FILE] [--unix-socket-path UNIX_SOCKET_PATH]
+          [--hostname HOSTNAME] [--hostnames HOSTNAMES [HOSTNAMES ...]]
+          [--port PORT] [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
+          [--unix-socket-path UNIX_SOCKET_PATH]
           [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
           [--log-file LOG_FILE] [--log-format LOG_FORMAT]
           [--open-file-limit OPEN_FILE_LIMIT]
@@ -2405,6 +2407,8 @@ options:
   --backlog BACKLOG     Default: 100. Maximum number of pending connections to
                         proxy server.
   --hostname HOSTNAME   Default: 127.0.0.1. Server IP address.
+  --hostnames HOSTNAMES [HOSTNAMES ...]
+                        Default: None. Additional IP addresses to listen on.
   --port PORT           Default: 8899. Server port. To listen on more ports,
                         pass them using --ports flag.
   --ports PORTS [PORTS ...]

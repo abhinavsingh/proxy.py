@@ -35,7 +35,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
     @pytest.fixture(autouse=True)   # type: ignore[misc]
     def _setUp(self, request: Any, mocker: MockerFixture) -> None:
-        self.mock_fromfd = mocker.patch('socket.fromfd')
+        self.mock_socket_dup = mocker.patch('socket.dup')
         self.mock_selector = mocker.patch('selectors.DefaultSelector')
         self.mock_sign_csr = mocker.patch('proxy.http.proxy.server.sign_csr')
         self.mock_gen_csr = mocker.patch('proxy.http.proxy.server.gen_csr')
@@ -53,6 +53,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.mock_gen_public_key.return_value = True
 
         self.fileno = 10
+        self.mock_socket_dup.side_effect = lambda fd: fd
+
         self._addr = ('127.0.0.1', 54382)
         self.flags = FlagParser.initialize(
             ca_cert_file='ca-cert.pem',
@@ -69,7 +71,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             b'HttpProxyBasePlugin': [plugin],
         }
         self._conn = mocker.MagicMock(spec=socket.socket)
-        self.mock_fromfd.return_value = self._conn
+
         self.protocol_handler = HttpProtocolHandler(
             HttpClientConnection(self._conn, self._addr), flags=self.flags,
         )
