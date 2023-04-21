@@ -32,10 +32,11 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_DASHBOARD, PLUGIN_DEVTOOLS_PROTOCOL,
     DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
     DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
-    DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
+    DEFAULT_ACCEPTOR_POOL_KLASS, DEFAULT_CA_SIGNING_KEY_FILE,
+    DEFAULT_CLIENT_RECVBUF_SIZE, DEFAULT_LISTENER_POOL_KLASS,
     DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CACHE_DIRECTORY_PATH,
     DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
-    _env_threadless_compliant,
+    DEFAULT_THREADLESS_POOL_KLASS, _env_threadless_compliant,
 )
 
 
@@ -58,6 +59,8 @@ class TestMain(unittest.TestCase):
         mock_args.basic_auth = DEFAULT_BASIC_AUTH
         mock_args.hostname = DEFAULT_IPV6_HOSTNAME
         mock_args.port = DEFAULT_PORT
+        mock_args.listener_pool_klass = DEFAULT_LISTENER_POOL_KLASS
+        mock_args.acceptor_pool_klass = DEFAULT_ACCEPTOR_POOL_KLASS
         mock_args.num_acceptors = DEFAULT_NUM_ACCEPTORS
         mock_args.num_workers = DEFAULT_NUM_WORKERS
         mock_args.disable_http_proxy = DEFAULT_DISABLE_HTTP_PROXY
@@ -71,6 +74,7 @@ class TestMain(unittest.TestCase):
         mock_args.devtools_ws_path = DEFAULT_DEVTOOLS_WS_PATH
         mock_args.timeout = DEFAULT_TIMEOUT
         mock_args.threadless = DEFAULT_THREADLESS
+        mock_args.threadless_pool_klass = DEFAULT_THREADLESS_POOL_KLASS
         mock_args.threaded = not DEFAULT_THREADLESS
         mock_args.enable_web_server = DEFAULT_ENABLE_WEB_SERVER
         mock_args.enable_static_server = DEFAULT_ENABLE_STATIC_SERVER
@@ -91,9 +95,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     def test_entry_point(
             self,
             mock_listener_pool: mock.Mock,
@@ -147,9 +151,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     def test_main_with_no_flags(
             self,
             mock_listener_pool: mock.Mock,
@@ -191,9 +195,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('time.sleep')
     @mock.patch('proxy.proxy.FlagParser.initialize')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     def test_enable_events(
             self,
             mock_listener_pool: mock.Mock,
@@ -238,9 +242,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     def test_enable_dashboard(
             self,
             mock_listener_pool: mock.Mock,
@@ -285,9 +289,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     def test_enable_devtools(
             self,
             mock_listener_pool: mock.Mock,
@@ -326,9 +330,9 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.common.plugins.Plugins.load')
     @mock.patch('proxy.common.flag.FlagParser.parse_args')
     @mock.patch('proxy.proxy.EventManager')
-    @mock.patch('proxy.proxy.AcceptorPool')
-    @mock.patch('proxy.proxy.ThreadlessPool')
-    @mock.patch('proxy.proxy.ListenerPool')
+    @mock.patch(DEFAULT_ACCEPTOR_POOL_KLASS)
+    @mock.patch(DEFAULT_THREADLESS_POOL_KLASS)
+    @mock.patch(DEFAULT_LISTENER_POOL_KLASS)
     @mock.patch('proxy.proxy.SshHttpProtocolHandler')
     @mock.patch('proxy.proxy.SshTunnelListener')
     def test_enable_ssh_tunnel(
