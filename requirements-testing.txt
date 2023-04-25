@@ -14,6 +14,7 @@ tox==3.25.1
 mccabe==0.6.1
 pylint==2.13.7
 rope==1.1.1
+python-ldap==3.4.3
 # Required by test_http2.py
 httpx==0.22.0
 h2==4.1.0

@@ -18,6 +18,7 @@
        Lua
 """
 from .cache import CacheResponsesPlugin, BaseCacheResponsesPlugin
+from .auth_ldap import LDAPAuthPlugin
 from .shortlink import ShortLinkPlugin
 from .proxy_pool import ProxyPoolPlugin
 from .program_name import ProgramNamePlugin
@@ -36,6 +37,7 @@ from .redirect_to_custom_server import RedirectToCustomServerPlugin
 
 
 __all__ = [
+    'LDAPAuthPlugin',
     'CacheResponsesPlugin',
     'BaseCacheResponsesPlugin',
     'FilterByUpstreamHostPlugin',
