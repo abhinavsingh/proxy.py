@@ -2355,8 +2355,12 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-requests]
           [--cache-by-content-type] [--cache-dir CACHE_DIR]
-          [--proxy-pool PROXY_POOL] [--enable-web-server]
-          [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
+          [--ldap-server LDAP_SERVER] [--ldap-root-dn LDAP_ROOT_DN]
+          [--ldap-root-pw LDAP_ROOT_PW] [--ldap-base-dn LDAP_BASE_DN]
+          [--ldap-user-search LDAP_USER_SEARCH]
+          [--ldap-auth-timeout LDAP_AUTH_TIMEOUT] [--proxy-pool PROXY_POOL]
+          [--enable-web-server] [--enable-static-server]
+          [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--pac-file PAC_FILE]
           [--pac-file-url-path PAC_FILE_URL_PATH]
@@ -2366,7 +2370,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc4.dev6+g4ee982a.d20221022
+proxy.py v0.1.dev886+g9ba2ea7.d20230425
 
 options:
   -h, --help            show this help message and exit
@@ -2489,10 +2493,10 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv/lib/py
-                        thon3.10/site-packages/certifi/cacert.pem. Provide
-                        path to custom CA bundle for peer certificate
-                        verification
+  --ca-file CA_FILE     Default:
+                        /home/sv/MyProjects/proxy.py/venv/lib/python3.10/site-
+                        packages/certifi/cacert.pem. Provide path to custom CA
+                        bundle for peer certificate verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
@@ -2507,9 +2511,23 @@ options:
                         from responses. Extracted content type is written to
                         the cache directory e.g. video.mp4.
   --cache-dir CACHE_DIR
-                        Default: /Users/abhinavsingh/.proxy/cache. Flag only
-                        applicable when cache plugin is used with on-disk
-                        storage.
+                        Default: /home/sv/.proxy/cache. Flag only applicable
+                        when cache plugin is used with on-disk storage.
+  --ldap-server LDAP_SERVER
+                        Default: ldap://ldap.example.org. LDAP server address.
+  --ldap-root-dn LDAP_ROOT_DN
+                        Default: uid=Manager,ou=People,dc=example,dc=com. LDAP
+                        root dn.
+  --ldap-root-pw LDAP_ROOT_PW
+                        Default: SecretPassword. LDAP root password.
+  --ldap-base-dn LDAP_BASE_DN
+                        Default: ou=People,dc=example,dc=com. LDAP users base
+                        DN.
+  --ldap-user-search LDAP_USER_SEARCH
+                        Default: (&(uid={user})(accountStatus=active)). LDAP
+                        user search filter.
+  --ldap-auth-timeout LDAP_AUTH_TIMEOUT
+                        Default: 3600. LDAP user auth timeout.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable
