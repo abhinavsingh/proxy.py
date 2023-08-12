@@ -8,9 +8,9 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-import base64
 import gzip
 import json
+import base64
 import selectors
 from typing import Any, cast
 from urllib import parse as urlparse
@@ -30,8 +30,8 @@ from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.utils import bytes_, build_http_request, build_http_response
 from proxy.http.responses import (
-    NOT_FOUND_RESPONSE_PKT, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
-    PROXY_AUTH_FAILED_RESPONSE_PKT,
+    NOT_FOUND_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
 )
 from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from .utils import get_plugin_by_test_name
