@@ -16,6 +16,7 @@ from proxy.plugin import (
     FilterByUpstreamHostPlugin, RedirectToCustomServerPlugin,
 )
 from proxy.http.proxy import HttpProxyBasePlugin
+from proxy.http.proxy.auth import AuthPlugin
 
 
 def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
@@ -36,4 +37,6 @@ def get_plugin_by_test_name(test_name: str) -> Type[HttpProxyBasePlugin]:
         plugin = FilterByURLRegexPlugin
     elif test_name == 'test_shortlink_plugin':
         plugin = ShortLinkPlugin
+    elif test_name == 'test_auth_plugin':
+        plugin = AuthPlugin
     return plugin
