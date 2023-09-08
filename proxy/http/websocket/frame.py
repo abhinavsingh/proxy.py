@@ -121,7 +121,7 @@ class WebsocketFrame:
         elif self.payload_length < 1 << 64:
             raw.write(
                 struct.pack(
-                    '!BHQ',
+                    '!BQ',
                     (1 << 7 if self.masked else 0) | 127,
                     self.payload_length,
                 ),
