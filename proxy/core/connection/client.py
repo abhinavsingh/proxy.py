@@ -42,7 +42,8 @@ class TcpClientConnection(TcpConnection):
     def wrap(self, keyfile: str, certfile: str) -> None:
         self.connection.setblocking(True)
         self.flush()
-        self._conn = ssl.wrap_socket(
+        ssl_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+        self._conn = ssl_context.wrap_socket(
             self.connection,
             server_side=True,
             certfile=certfile,
