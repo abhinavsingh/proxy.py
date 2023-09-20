@@ -251,7 +251,8 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
-            protocol=ssl.PROTOCOL_TLS_CLIENT)
+            protocol=ssl.PROTOCOL_TLS_CLIENT,
+        )
         self.mock_ssl_wrap.return_value.wrap_socket.assert_called_with(
             self._conn,
             server_side=True,
