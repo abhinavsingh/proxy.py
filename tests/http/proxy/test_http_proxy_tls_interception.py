@@ -62,9 +62,9 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_ssl_context.return_value.wrap_socket.return_value = upstream_tls_sock
 
         # Used for client wrapping
-        self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
+        self.mock_ssl_wrap = mocker.patch('ssl.SSLContext')
         client_tls_sock = mock.MagicMock(spec=ssl.SSLSocket)
-        self.mock_ssl_wrap.return_value = client_tls_sock
+        self.mock_ssl_wrap.return_value.wrap_socket.return_value = client_tls_sock
 
         plain_connection = mock.MagicMock(spec=socket.socket)
 
@@ -251,6 +251,8 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         assert self.flags.ca_cert_dir is not None
         self.mock_ssl_wrap.assert_called_with(
+            protocol=ssl.PROTOCOL_TLS_CLIENT)
+        self.mock_ssl_wrap.return_value.wrap_socket.assert_called_with(
             self._conn,
             server_side=True,
             keyfile=self.flags.ca_signing_key_file,

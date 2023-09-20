@@ -46,7 +46,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             'proxy.http.proxy.server.TcpServerConnection',
         )
         self.mock_ssl_context = mocker.patch('ssl.create_default_context')
-        self.mock_ssl_wrap = mocker.patch('ssl.wrap_socket')
+        self.mock_ssl_wrap = mocker.patch('ssl.SSLContext')
 
         self.mock_sign_csr.return_value = True
         self.mock_gen_csr.return_value = True
@@ -82,7 +82,7 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         self.server_ssl_connection = mocker.MagicMock(spec=ssl.SSLSocket)
         self.mock_ssl_context.return_value.wrap_socket.return_value = self.server_ssl_connection
         self.client_ssl_connection = mocker.MagicMock(spec=ssl.SSLSocket)
-        self.mock_ssl_wrap.return_value = self.client_ssl_connection
+        self.mock_ssl_wrap.return_value.wrap_socket.return_value = self.client_ssl_connection
 
         def has_buffer() -> bool:
             return cast(bool, self.server.queue.called)
