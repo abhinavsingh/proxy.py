@@ -31,7 +31,7 @@ build:
 # Optionally set the version of Python and requirements required
 # to build docs
 python:
-  system_packages: false
+  # system_packages: false
   install:
   - method: pip
     path: .
