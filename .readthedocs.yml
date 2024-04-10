@@ -31,11 +31,11 @@ build:
 # Optionally set the version of Python and requirements required
 # to build docs
 python:
+  system_packages: false
   install:
   - method: pip
     path: .
   - requirements: requirements-tunnel.txt
   - requirements: docs/requirements.txt
-  system_packages: false
 
 ...
