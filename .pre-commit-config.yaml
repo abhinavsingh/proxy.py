@@ -161,6 +161,7 @@ repos:
     - types-requests==2.27.30
     - cryptography==36.0.2; python_version <= '3.6'
     - types-setuptools == 57.4.2
+    - pyyaml==5.3.1
     args:
     # FIXME: get rid of missing imports ignore
     - --ignore-missing-imports
