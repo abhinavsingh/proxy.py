@@ -3,7 +3,7 @@
   "editor.formatOnSaveMode": "modifications",
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
-    "source.fixAll": true
+    "source.fixAll": "explicit"
   },
   "[yaml]": {
     "editor.insertSpaces": true,
@@ -18,7 +18,7 @@
   "typescript.format.semicolons": "remove",
   "typescript.preferences.quoteStyle": "single",
   "[python]": {
-    "editor.wordBasedSuggestions": true,
+    "editor.wordBasedSuggestions": "matchingDocuments",
     "editor.defaultFormatter": null
   },
   "python.testing.unittestEnabled": false,
