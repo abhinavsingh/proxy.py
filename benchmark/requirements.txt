@@ -3,3 +3,6 @@ blacksheep==1.2.7
 starlette==0.19.1
 tornado==6.1
 uvicorn==0.16.0
+# Pin to 0.1.4 since higher version needs pyyaml==5.4.1 which is broken for cython 3
+# See https://github.com/yaml/pyyaml/issues/724#issuecomment-1638587228
+essentials_openapi==0.1.4

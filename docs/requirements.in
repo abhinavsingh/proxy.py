@@ -5,4 +5,4 @@ furo >= 2021.11.15
 sphinxcontrib-apidoc >= 0.3.0
 sphinxcontrib-towncrier >= 0.2.0a0
 # See https://github.com/yaml/pyyaml/issues/724#issuecomment-1638587228
-pyyaml!=6.0.0,!=5.4.0,!=5.4.1
+pyyaml==5.3.1
