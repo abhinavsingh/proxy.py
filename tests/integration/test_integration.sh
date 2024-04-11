@@ -110,13 +110,13 @@ Disallow: /deny
 EOM
 
 echo "[Test HTTP Request via Proxy]"
-CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL http://httpbin.org/robots.txt"
+CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL http://httpbingo.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED1=$?
 
 echo "[Test HTTPS Request via Proxy]"
-CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL https://httpbin.org/robots.txt"
+CMD="$CURL $CURL_EXTRA_FLAGS -x $PROXY_URL https://httpbingo.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?

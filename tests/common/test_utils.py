@@ -25,7 +25,7 @@ class TestSocketConnectionUtils(unittest.TestCase):
     def setUp(self) -> None:
         self.addr_ipv4 = (str(DEFAULT_IPV4_HOSTNAME), DEFAULT_PORT)
         self.addr_ipv6 = (str(DEFAULT_IPV6_HOSTNAME), DEFAULT_PORT)
-        self.addr_dual = ('httpbin.org', DEFAULT_HTTP_PORT)
+        self.addr_dual = ("httpbingo.org", DEFAULT_HTTP_PORT)
 
     @mock.patch('socket.socket')
     def test_new_socket_connection_ipv4(self, mock_socket: mock.Mock) -> None:
