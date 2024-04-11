@@ -1,6 +1,6 @@
 """Sphinx extension for making the spelling directive noop."""
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from sphinx.util.nodes import nodes
 from sphinx.application import Sphinx
