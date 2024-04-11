@@ -13,13 +13,24 @@
 from typing import Tuple, Union
 
 
+def _get_dist(distribution_name: str) -> str:
+    try:
+        # pylint: disable=import-outside-toplevel
+        from importlib.metadata import version  # noqa: WPS433
+
+        return version(distribution_name)
+    except ModuleNotFoundError:  # pragma: no cover
+        # pylint: disable=import-outside-toplevel
+        from pkg_resources import get_distribution  # noqa: WPS433
+
+        return get_distribution(distribution_name).version
+
+
 try:
     # pylint: disable=unused-import
     from ._scm_version import version as __version__  # noqa: WPS433, WPS436
     from ._scm_version import version_tuple as _ver_tup  # noqa: WPS433, WPS436
-except ImportError:     # pragma: no cover
-    from importlib.metadata import version as _get_dist  # noqa: WPS433
-
+except ImportError:  # pragma: no cover
     __version__ = _get_dist('proxy.py')  # noqa: WPS440
 
 
