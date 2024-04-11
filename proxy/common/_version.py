@@ -14,16 +14,22 @@ from typing import Tuple, Union
 
 
 def _get_dist(distribution_name: str) -> str:
+    # pylint: disable=import-outside-toplevel
+    import warnings
+
     try:
         # pylint: disable=import-outside-toplevel
         from importlib.metadata import version  # noqa: WPS433
 
         return version(distribution_name)
     except ModuleNotFoundError:  # pragma: no cover
-        # pylint: disable=import-outside-toplevel
-        from pkg_resources import get_distribution  # noqa: WPS433
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-        return get_distribution(distribution_name).version
+            # pylint: disable=import-outside-toplevel
+            from pkg_resources import get_distribution  # noqa: WPS433
+
+            return get_distribution(distribution_name).version
 
 
 try:
