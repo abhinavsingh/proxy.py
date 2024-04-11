@@ -274,7 +274,9 @@ tomli==1.2.2 \
 towncrier==21.3.0 \
     --hash=sha256:6eed0bc924d72c98c000cb8a64de3bd566e5cb0d11032b73fcccf8a8f956ddfe \
     --hash=sha256:e6ccec65418bbcb8de5c908003e130e37fe0e9d6396cb77c1338241071edc082
-    # via sphinxcontrib-towncrier
+    # via
+    #   -r docs/requirements.in
+    #   sphinxcontrib-towncrier
 typing-extensions==4.2.0 \
     --hash=sha256:6657594ee297170d19f67d55c05852a874e7eb634f4f753dbd667855e07c1708 \
     --hash=sha256:f1c24655a0da0d1b67f07e17a5e6b2a105894e6824b92096378bb3668ef02376

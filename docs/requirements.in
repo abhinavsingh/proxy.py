@@ -15,3 +15,4 @@ sphinxcontrib-htmlhelp==2.0.0
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-towncrier==0.2.1a0
+towncrier==21.3.0

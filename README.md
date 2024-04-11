@@ -2366,7 +2366,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc4.dev6+g4ee982a.d20221022
+proxy.py v2.4.4rc5.dev28+g1fdf352e.d20240411
 
 options:
   -h, --help            show this help message and exit
