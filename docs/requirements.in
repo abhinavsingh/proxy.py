@@ -4,3 +4,15 @@ Sphinx == 4.3.2
 furo >= 2021.11.15
 sphinxcontrib-apidoc >= 0.3.0
 sphinxcontrib-towncrier >= 0.2.0a0
+# See https://github.com/yaml/pyyaml/issues/724#issuecomment-1638587228
+pyyaml==5.3.1
+# PIN to fix:
+# The sphinxcontrib.applehelp extension used by this project needs at least Sphinx v5.0;
+# it therefore cannot be built with this version.
+sphinxcontrib-applehelp==1.0.2
+sphinxcontrib-devhelp==1.0.2
+sphinxcontrib-htmlhelp==2.0.0
+sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-serializinghtml==1.1.5
+sphinxcontrib-towncrier==0.2.1a0
+towncrier==21.3.0

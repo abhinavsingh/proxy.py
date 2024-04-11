@@ -82,7 +82,7 @@ plugin
 EOM
 
 echo "[Test ModifyChunkResponsePlugin]"
-RESPONSE=$(curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert-chunk.pem https://httpbin.org/stream/5 2> /dev/null)
+RESPONSE=$(curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert-chunk.pem https://httpbingo.org/stream/5 2> /dev/null)
 verify_response "$RESPONSE" "$MODIFIED_CHUNK_RESPONSE"
 VERIFIED1=$?
 

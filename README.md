@@ -195,7 +195,7 @@
 
     Consult [Threads vs Threadless](#threads-vs-threadless) and [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode) to control number of CPU cores utilized.
 
-    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/blob/develop/benchmark/README.md) for more details and for how to run benchmarks locally.
 
 - Lightweight
   - Uses only `~5-20 MB` RAM
@@ -2366,7 +2366,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc4.dev6+g4ee982a.d20221022
+proxy.py v2.4.4rc5.dev36+g6c9d0315.d20240411
 
 options:
   -h, --help            show this help message and exit

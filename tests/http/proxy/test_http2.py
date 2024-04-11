@@ -18,7 +18,7 @@ class TestHttp2WithProxy(TestCase):
     def test_http2_via_proxy(self) -> None:
         assert self.PROXY
         response = httpx.get(
-            'https://httpbin.org/get',
+            'https://www.google.com',
             headers={'accept': 'application/json'},
             verify=httpx.create_ssl_context(http2=True),
             timeout=httpx.Timeout(timeout=5.0),
