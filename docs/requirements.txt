@@ -228,15 +228,21 @@ sphinxcontrib-apidoc==0.3.0 \
 sphinxcontrib-applehelp==1.0.2 \
     --hash=sha256:806111e5e962be97c29ec4c1e7fe277bfd19e9652fb1a4392105b43e01af885a \
     --hash=sha256:a072735ec80e7675e3f432fcae8610ecf509c5f1869d17e2eecff44389cdbc58
-    # via sphinx
+    # via
+    #   -r docs/requirements.in
+    #   sphinx
 sphinxcontrib-devhelp==1.0.2 \
     --hash=sha256:8165223f9a335cc1af7ffe1ed31d2871f325254c0423bc0c4c7cd1c1e4734a2e \
     --hash=sha256:ff7f1afa7b9642e7060379360a67e9c41e8f3121f2ce9164266f61b9f4b338e4
-    # via sphinx
+    # via
+    #   -r docs/requirements.in
+    #   sphinx
 sphinxcontrib-htmlhelp==2.0.0 \
     --hash=sha256:d412243dfb797ae3ec2b59eca0e52dac12e75a241bf0e4eb861e450d06c6ed07 \
     --hash=sha256:f5f8bb2d0d629f398bf47d0d69c07bc13b65f75a81ad9e2f71a63d4b7a2f6db2
-    # via sphinx
+    # via
+    #   -r docs/requirements.in
+    #   sphinx
 sphinxcontrib-jsmath==1.0.1 \
     --hash=sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178 \
     --hash=sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8
@@ -244,11 +250,15 @@ sphinxcontrib-jsmath==1.0.1 \
 sphinxcontrib-qthelp==1.0.3 \
     --hash=sha256:4c33767ee058b70dba89a6fc5c1892c0d57a54be67ddd3e7875a18d14cba5a72 \
     --hash=sha256:bd9fc24bcb748a8d51fd4ecaade681350aa63009a347a8c14e637895444dfab6
-    # via sphinx
+    # via
+    #   -r docs/requirements.in
+    #   sphinx
 sphinxcontrib-serializinghtml==1.1.5 \
     --hash=sha256:352a9a00ae864471d3a7ead8d7d79f5fc0b57e8b3f95e9867eb9eb28999b92fd \
     --hash=sha256:aa5f6de5dfdf809ef505c4895e51ef5c9eac17d0f287933eb49ec495280b6952
-    # via sphinx
+    # via
+    #   -r docs/requirements.in
+    #   sphinx
 sphinxcontrib-towncrier==0.2.1a0 \
     --hash=sha256:a6fac6091a8ee12664d9b1f50a1504cb662380bf8d3bd0f267ebbf4483aa9c18 \
     --hash=sha256:b15ee84aa6288173487988514b589155ef38ac6c55ab014a774102f9dc884f41
