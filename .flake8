@@ -188,6 +188,7 @@ extend-ignore =
   WPS613  # FIXME: unmatching super method access
   WPS615  # FIXME: unpythonic setter/getter
   PT027   # FIXME: use pytest.raises() instead of unittest-style 'assertRaises'
+  S507    # FIXME: Paramiko call with policy set to automatically trust the unknown host key
 
 # https://wemake-python-stylegui.de/en/latest/pages/usage/formatter.html
 format = wemake

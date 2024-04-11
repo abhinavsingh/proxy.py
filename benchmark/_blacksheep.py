@@ -9,16 +9,19 @@
     :license: BSD, see LICENSE for more details.
 """
 import uvicorn
-from blacksheep.server import Application
-from blacksheep.server.responses import text
 
 
-app = Application()
+# from blacksheep.server import Application
+# from blacksheep.server.responses import text
 
 
-@app.route('/http-route-example')
+# app = Application()
+
+
+# @app.route('/http-route-example')
 async def home(request):    # type: ignore[no-untyped-def]
-    return text('HTTP route response')
+    # return text('HTTP route response')
+    pass
 
 if __name__ == '__main__':
     uvicorn.run('server:app', port=9000, workers=10, log_level='warning')
