@@ -34,7 +34,7 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
     Customize map below for your taste and need.
 
     Paths are also preserved. E.g. ``t/imoracle`` will
-    resolve to https://twitter.com/imoracle.
+    resolve to my Twitter profile for username ``imoracle``.
     """
 
     SHORT_LINKS = {
@@ -65,7 +65,7 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
                 path = SLASH if not request.path else request.path
                 self.client.queue(
                     seeOthersResponse(
-                        b'https://' + self.SHORT_LINKS[request.host] + path,
+                        b"http://" + self.SHORT_LINKS[request.host] + path,
                     ),
                 )
             else:
