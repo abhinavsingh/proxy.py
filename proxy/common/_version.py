@@ -20,7 +20,7 @@ try:
 except ImportError:     # pragma: no cover
     from importlib.metadata import version as _get_dist  # noqa: WPS433
 
-    __version__ = _get_dist("proxy.py")  # noqa: WPS440
+    __version__ = _get_dist('proxy.py')  # noqa: WPS440
 
 
 def _to_int_or_str(inp: str) -> Union[int, str]:    # pragma: no cover
