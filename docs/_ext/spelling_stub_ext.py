@@ -1,6 +1,6 @@
 """Sphinx extension for making the spelling directive noop."""
 
-from typing import List
+from typing import List, Dict, Any
 
 from sphinx.util.nodes import nodes
 from sphinx.application import Sphinx
@@ -17,7 +17,7 @@ class SpellingNoOpDirective(SphinxDirective):
         return []
 
 
-def setup(app: Sphinx) -> None:
+def setup(app: Sphinx) -> Dict[str, Any]:
     """Initialize the extension."""
     app.add_directive('spelling', SpellingNoOpDirective)
 
