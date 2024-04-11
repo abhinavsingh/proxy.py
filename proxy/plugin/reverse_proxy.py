@@ -41,7 +41,7 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             # A static route
             (
                 r'/get$',
-                [b'http://httpbin.org/get', b'https://httpbin.org/get'],
+                [b'http://httpbingo.org/get', b'https://httpbingo.org/get'],
             ),
             # A dynamic route to catch requests on "/get/<int>""
             # See "handle_route" method below for what we do when
@@ -53,7 +53,7 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
         """For our example dynamic route, we want to simply convert
         any incoming request to "/get/1" into "/get?id=1" when serving from upstream.
         """
-        choice: Url = Url.from_bytes(b'http://httpbin.org/get')
+        choice: Url = Url.from_bytes(b'http://httpbingo.org/get')
         assert request.path
         result = re.search(pattern, request.path.decode())
         if not result or len(result.groups()) != 1:
