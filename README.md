@@ -195,7 +195,7 @@
 
     Consult [Threads vs Threadless](#threads-vs-threadless) and [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode) to control number of CPU cores utilized.
 
-    See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark#readme) for more details and for how to run benchmarks locally.
+    See [Benchmark](https://github.com/abhinavsingh/proxy.py/blob/develop/benchmark/README.md) for more details and for how to run benchmarks locally.
 
 - Lightweight
   - Uses only `~5-20 MB` RAM
