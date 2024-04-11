@@ -2,7 +2,6 @@
 requires = [
   # Essentials
   "setuptools",
-  "importlib-metadata; python_version <= '3.7'",
 
   # Plugins
   "setuptools-scm[toml]>=6,!=7.0.0,!=7.0.1,!=7.0.2",
