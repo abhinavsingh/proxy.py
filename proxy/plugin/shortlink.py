@@ -34,7 +34,7 @@ class ShortLinkPlugin(HttpProxyBasePlugin):
     Customize map below for your taste and need.
 
     Paths are also preserved. E.g. ``t/imoracle`` will
-    resolve to http://twitter.com/imoracle.
+    resolve to my Twitter profile for username ``imoracle``.
     """
 
     SHORT_LINKS = {

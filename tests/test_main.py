@@ -377,7 +377,8 @@ class TestProxyContextManager(unittest.TestCase):
     def test_proxy_context_manager(self) -> None:
         with Proxy(port=8888, num_acceptors=1):
             response = requests.get(
-                'http://httpbin.org/get', proxies={
+                'http://httpbingo.org/get',
+                proxies={
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
                 },
@@ -385,7 +386,8 @@ class TestProxyContextManager(unittest.TestCase):
             )
             self.assertEqual(response.status_code, 200)
             response = requests.get(
-                'https://httpbin.org/get', proxies={
+                'https://httpbingo.org/get',
+                proxies={
                     'http': 'http://127.0.0.1:8888',
                     'https': 'http://127.0.0.1:8888',
                 },

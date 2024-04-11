@@ -87,11 +87,12 @@ class TestHttpProxyPluginExamples(Assertions):
         modified = b'{"key": "modified"}'
 
         self._conn.recv.return_value = build_http_request(
-            b'POST', b'http://httpbin.org/post',
+            b"POST",
+            b"http://httpbingo.org/post",
             headers={
-                b'Host': b'httpbin.org',
-                b'Content-Type': b'application/x-www-form-urlencoded',
-                b'Content-Length': bytes_(len(original)),
+                b"Host": b"httpbingo.org",
+                b"Content-Type": b"application/x-www-form-urlencoded",
+                b"Content-Length": bytes_(len(original)),
             },
             body=original,
             no_ua=True,
@@ -110,16 +111,18 @@ class TestHttpProxyPluginExamples(Assertions):
 
         await self.protocol_handler._run_once()
         self.mock_server_conn.assert_called_with(
-            'httpbin.org', DEFAULT_HTTP_PORT,
+            "httpbingo.org",
+            DEFAULT_HTTP_PORT,
         )
         self.mock_server_conn.return_value.queue.assert_called_with(
             build_http_request(
-                b'POST', b'/post',
+                b"POST",
+                b"/post",
                 headers={
-                    b'Host': b'httpbin.org',
-                    b'Content-Type': b'application/json',
-                    b'Content-Length': bytes_(len(modified)),
-                    b'Via': b'1.1 %s' % PROXY_AGENT_HEADER_VALUE,
+                    b"Host": b"httpbingo.org",
+                    b"Content-Type": b"application/json",
+                    b"Content-Length": bytes_(len(modified)),
+                    b"Via": b"1.1 %s" % PROXY_AGENT_HEADER_VALUE,
                 },
                 body=modified,
                 no_ua=True,

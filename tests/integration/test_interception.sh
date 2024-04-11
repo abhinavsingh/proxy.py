@@ -87,13 +87,13 @@ Disallow: /deny
 EOM
 
 echo "[Test HTTP Request via Proxy]"
-CMD="curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert.pem http://httpbin.org/robots.txt"
+CMD="curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert.pem http://httpbingo.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED1=$?
 
 echo "[Test HTTPS Request via Proxy]"
-CMD="curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert.pem https://httpbin.org/robots.txt"
+CMD="curl -v -x $PROXY_URL --cacert $CERT_DIR/ca-cert.pem https://httpbingo.org/robots.txt"
 RESPONSE=$($CMD 2> /dev/null)
 verify_response "$RESPONSE" "$ROBOTS_RESPONSE"
 VERIFIED2=$?
