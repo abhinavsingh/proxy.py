@@ -24,7 +24,7 @@ def _get_dist(distribution_name: str) -> str:
         return version(distribution_name)
     except ModuleNotFoundError:  # pragma: no cover
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
 
             # pylint: disable=import-outside-toplevel
             from pkg_resources import get_distribution  # noqa: WPS433
