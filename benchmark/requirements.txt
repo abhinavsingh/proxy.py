@@ -1,8 +1,8 @@
-aiohttp==3.8.1
+aiohttp==3.9.2
 # Blacksheep depends upon essentials_openapi which is pinned to pyyaml==5.4.1
 # and pyyaml>5.3.1 is broken for cython 3
 # See https://github.com/yaml/pyyaml/issues/724#issuecomment-1638587228
 # blacksheep==1.2.7
-starlette==0.19.1
-tornado==6.1
+starlette==0.36.2
+tornado==6.3.3
 uvicorn==0.16.0
