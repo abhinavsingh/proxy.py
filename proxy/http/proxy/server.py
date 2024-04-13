@@ -793,8 +793,8 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # we will cache such upstream hosts and avoid intercepting them for future
             # requests.
             logger.warning(
-                "ssl.SSLCertVerificationError: "
-                + "Server raised cert verification error for upstream: {0}".format(
+                'ssl.SSLCertVerificationError: '
+                + 'Server raised cert verification error for upstream: {0}'.format(
                     upstream.addr[0],
                 ),
             )
@@ -802,14 +802,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         except ssl.SSLError as e:
             if e.reason == 'SSLV3_ALERT_HANDSHAKE_FAILURE':
                 logger.warning(
-                    "{0}: ".format(e.reason)
-                    + "Server raised handshake alert failure for upstream: {0}".format(
+                    '{0}: '.format(e.reason)
+                    + 'Server raised handshake alert failure for upstream: {0}'.format(
                         upstream.addr[0],
                     ),
                 )
             else:
                 logger.exception(
-                    "SSLError when wrapping client for upstream: {0}".format(
+                    'SSLError when wrapping client for upstream: {0}'.format(
                         upstream.addr[0],
                     ),
                     exc_info=e,

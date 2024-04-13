@@ -19,6 +19,7 @@ from ..descriptors import DescriptorsHandlerMixin
 from ...common.utils import tls_interception_enabled
 from ...core.connection import TcpServerConnection
 
+
 if TYPE_CHECKING:   # pragma: no cover
     from ...common.types import HostPort
     from ...core.connection import UpstreamConnectionPool

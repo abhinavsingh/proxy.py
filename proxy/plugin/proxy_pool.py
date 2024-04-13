@@ -15,7 +15,6 @@ import ipaddress
 from typing import Any, Dict, List, Optional
 
 from proxy.core.connection import TcpServerConnection
-
 from ..http import Url, httpHeaders, httpMethods
 from ..core.base import TcpUpstreamConnectionHandler
 from ..http.proxy import HttpProxyBasePlugin
