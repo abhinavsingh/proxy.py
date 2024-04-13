@@ -21,7 +21,7 @@ import socket
 import logging
 import threading
 import subprocess
-from typing import Any, Dict, List, Union, Optional, cast
+from typing import Any, Dict, List, Union, Optional
 
 from .plugin import HttpProxyBasePlugin
 from ..parser import HttpParser, httpParserTypes, httpParserStates
@@ -487,6 +487,14 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         # Connect to upstream
         if do_connect:
             self.connect_upstream()
+        else:
+            # If a plugin asked us not to connect to upstream
+            # check if any plugin is managing an upstream connection.
+            for plugin in self.plugins.values():
+                up = plugin.upstream_connection(self.request)
+                if up is not None:
+                    self.upstream = up
+                    break
 
         # Invoke plugin.handle_client_request
         for plugin in self.plugins.values():
@@ -756,13 +764,28 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return self.client.connection
 
     def wrap_server(self) -> bool:
-        assert self.upstream is not None
-        assert isinstance(self.upstream.connection, socket.socket)
+        assert self.upstream is not None and self.request.host
+        return self._wrap_server(
+            self.upstream,
+            host=self.request.host,
+            ca_file=self.flags.ca_file,
+        )
+
+    @staticmethod
+    def _wrap_server(
+        upstream: TcpServerConnection,
+        host: bytes,
+        ca_file: Optional[str] = None,
+    ) -> bool:
+        assert isinstance(upstream.connection, socket.socket)
         do_close = False
+        if upstream.is_proxy:
+            # Don't wrap upstream if its part of proxy chain
+            return do_close
         try:
-            self.upstream.wrap(
-                text_(self.request.host),
-                self.flags.ca_file,
+            upstream.wrap(
+                text_(host),
+                ca_file,
                 as_non_blocking=True,
             )
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
@@ -770,40 +793,68 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
             # we will cache such upstream hosts and avoid intercepting them for future
             # requests.
             logger.warning(
-                'ssl.SSLCertVerificationError: ' +
-                'Server raised cert verification error for upstream: {0}'.format(
-                    self.upstream.addr[0],
+                "ssl.SSLCertVerificationError: "
+                + "Server raised cert verification error for upstream: {0}".format(
+                    upstream.addr[0],
                 ),
             )
             do_close = True
         except ssl.SSLError as e:
             if e.reason == 'SSLV3_ALERT_HANDSHAKE_FAILURE':
                 logger.warning(
-                    '{0}: '.format(e.reason) +
-                    'Server raised handshake alert failure for upstream: {0}'.format(
-                        self.upstream.addr[0],
+                    "{0}: ".format(e.reason)
+                    + "Server raised handshake alert failure for upstream: {0}".format(
+                        upstream.addr[0],
                     ),
                 )
             else:
                 logger.exception(
-                    'SSLError when wrapping client for upstream: {0}'.format(
-                        self.upstream.addr[0],
-                    ), exc_info=e,
+                    "SSLError when wrapping client for upstream: {0}".format(
+                        upstream.addr[0],
+                    ),
+                    exc_info=e,
                 )
             do_close = True
         if not do_close:
-            assert isinstance(self.upstream.connection, ssl.SSLSocket)
+            assert isinstance(upstream.connection, ssl.SSLSocket)
         return do_close
 
     def wrap_client(self) -> bool:
         assert self.upstream is not None and self.flags.ca_signing_key_file is not None
-        assert isinstance(self.upstream.connection, ssl.SSLSocket)
+        certificate: Optional[Dict[str, Any]] = None
+        if isinstance(self.upstream.connection, ssl.SSLSocket):
+            certificate = self.upstream.connection.getpeercert()
+        else:
+            assert self.upstream.is_proxy and self.request.host and self.request.port
+            if self.flags.enable_conn_pool:
+                assert self.upstream_conn_pool
+                with self.lock:
+                    _, upstream = self.upstream_conn_pool.acquire(
+                        (text_(self.request.host), self.request.port),
+                    )
+            else:
+                _, upstream = True, TcpServerConnection(
+                    text_(self.request.host),
+                    self.request.port,
+                )
+                # Connect with overridden upstream IP and source address
+                # if any of the plugin returned a non-null value.
+                upstream.connect()
+                upstream.connection.setblocking(False)
+            do_close = self._wrap_server(
+                upstream,
+                host=self.request.host,
+                ca_file=self.flags.ca_file,
+            )
+            if do_close:
+                return do_close
+            assert isinstance(upstream.connection, ssl.SSLSocket)
+            certificate = upstream.connection.getpeercert()
+        assert certificate
         do_close = False
         try:
             # TODO: Perform async certificate generation
-            generated_cert = self.generate_upstream_certificate(
-                cast(Dict[str, Any], self.upstream.connection.getpeercert()),
-            )
+            generated_cert = self.generate_upstream_certificate(certificate)
             self.client.wrap(self.flags.ca_signing_key_file, generated_cert)
         except subprocess.TimeoutExpired as e:  # Popen communicate timeout
             logger.exception(

@@ -14,6 +14,8 @@ import logging
 import ipaddress
 from typing import Any, Dict, List, Optional
 
+from proxy.core.connection import TcpServerConnection
+
 from ..http import Url, httpHeaders, httpMethods
 from ..core.base import TcpUpstreamConnectionHandler
 from ..http.proxy import HttpProxyBasePlugin
@@ -78,6 +80,9 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
     def handle_upstream_data(self, raw: memoryview) -> None:
         self.client.queue(raw)
 
+    def upstream_connection(self, request: HttpParser) -> Optional[TcpServerConnection]:
+        return self.upstream
+
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
@@ -107,6 +112,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         logger.debug('Using endpoint: {0}:{1}'.format(*endpoint_tuple))
         self.initialize_upstream(*endpoint_tuple)
         assert self.upstream
+        self.upstream.mark_as_proxy()
         try:
             self.upstream.connect()
         except TimeoutError:

@@ -17,7 +17,7 @@ from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
 from ...common.utils import tls_interception_enabled
-
+from ...core.connection import TcpServerConnection
 
 if TYPE_CHECKING:   # pragma: no cover
     from ...common.types import HostPort
@@ -68,6 +68,12 @@ class HttpProxyBasePlugin(
         Return 2-tuple representing (host, port) to use as source address
         """
         return None, None
+
+    def upstream_connection(
+        self,
+        request: HttpParser,
+    ) -> Optional[TcpServerConnection]:
+        return None
 
     # No longer abstract since 2.4.0
     #
