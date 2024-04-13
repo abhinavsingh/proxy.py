@@ -37,8 +37,6 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     Accepts `Client` connection and delegates to HttpProtocolHandlerPlugin.
     """
 
-    server_teared = False
-
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
         self.start_time: float = time.time()
@@ -131,6 +129,9 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                     events[wfileno] |= selectors.EVENT_WRITE
         return events
 
+    writes_teardown: bool = False
+    reads_teardown: bool = False
+
     # We override super().handle_events and never call it
     async def handle_events(
             self,
@@ -139,26 +140,26 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        teardown = await self.handle_writables(writables)
-        if teardown:
-            return True
-        # Invoke plugin.write_to_descriptors
-        if self.plugin:
-            teardown = await self.plugin.write_to_descriptors(writables)
-            if teardown:
-                return True
-        if not self.server_teared:
-            # Read from ready to read sockets
-            teardown = await self.handle_readables(readables)
-            if teardown:
-                self.server_teared = True
-            # Invoke plugin.read_from_descriptors
+        self.writes_teardown = await self.handle_writables(writables)
+        if not self.writes_teardown:
+            # Invoke plugin.write_to_descriptors
             if self.plugin:
-                teardown = await self.plugin.read_from_descriptors(readables)
-                if teardown:
-                    self.server_teared = True
-        if self.server_teared and not self.work.has_buffer():
-            # Wait until client buffer flushed when server teared down.
+                self.writes_teardown = await self.plugin.write_to_descriptors(writables)
+            if not self.writes_teardown:
+                # Read from ready to read sockets
+                self.reads_teardown = await self.handle_readables(readables)
+                if not self.reads_teardown:
+                    # Invoke plugin.read_from_descriptors
+                    if self.plugin:
+                        self.reads_teardown = await self.plugin.read_from_descriptors(
+                            readables
+                        )
+        # Wait until client buffer has flushed when reads has teared down, but we can still write
+        if (
+            self.reads_teardown
+            and not self.writes_teardown
+            and not self.work.has_buffer()
+        ):
             return True
         return False
 
