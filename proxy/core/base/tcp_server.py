@@ -240,3 +240,8 @@ class BaseTcpServerHandler(Work[T]):
             conn = wrap_socket(conn, self.flags.keyfile, self.flags.certfile)
             self.work._conn = conn
         return conn
+
+    @staticmethod
+    @abstractmethod
+    def create(*args: Any) -> T:
+        raise NotImplementedError()

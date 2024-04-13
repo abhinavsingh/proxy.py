@@ -12,7 +12,7 @@ mypy==0.971
 py-spy==0.3.12
 tox==3.28.0
 mccabe==0.6.1
-pylint==2.13.7
+pylint==3.1.0
 rope==1.1.1
 # Required by test_http2.py
 httpx==0.22.0

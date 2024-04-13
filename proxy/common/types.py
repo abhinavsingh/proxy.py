@@ -14,7 +14,7 @@ import sys
 import queue
 import socket
 import ipaddress
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Union, TypeVar
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -34,8 +34,8 @@ TcpOrTlsSocket = Union[ssl.SSLSocket, socket.socket]
 HostPort = Tuple[str, int]
 
 if sys.version_info.minor == 6:
-    RePattern = Any
+    RePattern = TypeVar('RePattern', bound=Any)
 elif sys.version_info.minor in (7, 8):
-    RePattern = re.Pattern  # type: ignore
+    RePattern = TypeVar('RePattern', bound=re.Pattern)  # type: ignore
 else:
-    RePattern = re.Pattern[Any]  # type: ignore
+    RePattern = TypeVar('RePattern', bound=re.Pattern[Any])  # type: ignore

@@ -169,7 +169,7 @@ class ReverseProxyBasePlugin(ABC):
 
     def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
         """Implement this method if you have configured dynamic routes."""
-        pass
+        raise NotImplementedError()
 
     def regexes(self) -> List[str]:
         """Helper method to return list of route regular expressions."""
