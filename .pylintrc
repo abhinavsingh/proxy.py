@@ -131,6 +131,10 @@ disable=raw-checker-failed,
         useless-return,
         useless-super-delegation,
         wrong-import-order,
+        # Required because to support 3.11
+        # we added unnecessary-dunder-call which is not supported for <=3.11
+        # see https://github.com/abhinavsingh/proxy.py/actions/runs/8671404475/job/23780537848?pr=1384
+        bad-option-value
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

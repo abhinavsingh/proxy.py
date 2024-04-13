@@ -22,14 +22,14 @@ class TestHttp2WithProxy(TestCase):
         assert self.PROXY
         proxy_url = 'http://localhost:%d' % self.PROXY.flags.port
         proxies: Dict[str, Any] = (
-            {'proxy': proxy_url}
-            # For Python>=3.11, proxies is deprecated by httpx
-            if sys.version_info >= (3, 11)
-            else {
+            {
                 'proxies': {
                     'all://': proxy_url,
                 },
             }
+            # For Python>=3.11, proxies keyword is deprecated by httpx
+            if sys.version_info < (3, 11, 0)
+            else {'proxy': proxy_url}
         )
         response = httpx.get(
             'https://www.google.com',
