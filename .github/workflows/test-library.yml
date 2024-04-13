@@ -464,7 +464,7 @@ jobs:
     env:
       PY_COLORS: 1
       TOX_PARALLEL_NO_SPINNER: 1
-      TOXENV: python
+      TOXENV: py
 
     steps:
     - name: Switch to using Python v${{ matrix.python }}
