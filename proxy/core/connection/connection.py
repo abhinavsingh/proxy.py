@@ -90,7 +90,7 @@ class TcpConnection(ABC):
         try:
             sent: int = self.send(mv[:max_send_size])
         except BlockingIOError:
-            logger.warning("BlockingIOError when trying send to {0}".format(self.tag))
+            logger.warning('BlockingIOError when trying send to {0}'.format(self.tag))
             return 0
         if sent == len(mv):
             self.buffer.pop(0)
