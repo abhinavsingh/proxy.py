@@ -1,6 +1,7 @@
 wheel==0.37.1
 python-coveralls==2.9.3
-coverage==6.2
+coverage==6.2; python_version < '3.11'
+coverage==7.4.4; python_version >= '3.11'
 flake8==4.0.1
 # pytest for Python<3.11
 pytest==7.0.1; python_version < '3.11'
@@ -10,7 +11,7 @@ pytest-mock==3.6.1; python_version < '3.11'
 pytest-asyncio==0.16.0; python_version < '3.11'
 # pytest for Python>=3.11
 pytest==8.1.1; python_version >= '3.11'
-pytest-cov==4.1.0; python_version >= '3.11'
+pytest-cov==5.0.0; python_version >= '3.11'
 pytest-xdist==3.5.0; python_version >= '3.11'
 pytest-mock==3.14.0; python_version >= '3.11'
 pytest-asyncio==0.21.1; python_version >= '3.11'
