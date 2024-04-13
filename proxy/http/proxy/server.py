@@ -175,7 +175,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         return r, w
 
     async def write_to_descriptors(self, w: Writables) -> bool:
-        if (self.upstream and self.upstream.connection.fileno() not in w) or not self.upstream:
+        if (
+            self.upstream
+            and not self.upstream.closed
+            and self.upstream.connection.fileno() not in w
+        ) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors
             # doesn't contain the descriptor they registered.
@@ -208,9 +212,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
 
     async def read_from_descriptors(self, r: Readables) -> bool:
         if (
-            self.upstream and not
-            self.upstream.closed and
-            self.upstream.connection.fileno() not in r
+            self.upstream
+            and not self.upstream.closed
+            and self.upstream.connection.fileno() not in r
         ) or not self.upstream:
             # Currently, we just call write/read block of each plugins.  It is
             # plugins responsibility to ignore this callback, if passed descriptors

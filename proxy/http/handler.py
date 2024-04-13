@@ -49,6 +49,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
         self.plugin: Optional[HttpProtocolHandlerPlugin] = None
+        self.writes_teared: bool = False
+        self.reads_teared: bool = False
 
     ##
     # initialize, is_inactive, shutdown, get_events, handle_events
@@ -137,23 +139,26 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        teardown = await self.handle_writables(writables)
-        if teardown:
+        self.writes_teared = await self.handle_writables(writables)
+        if self.writes_teared:
             return True
         # Invoke plugin.write_to_descriptors
         if self.plugin:
-            teardown = await self.plugin.write_to_descriptors(writables)
-            if teardown:
+            self.writes_teared = await self.plugin.write_to_descriptors(writables)
+            if self.writes_teared:
                 return True
-        # Read from ready to read sockets
-        teardown = await self.handle_readables(readables)
-        if teardown:
+        # Read from ready to read sockets if reads have not already teared down
+        if not self.reads_teared:
+            self.reads_teared = await self.handle_readables(readables)
+            if not self.reads_teared:
+                # Invoke plugin.read_from_descriptors
+                if self.plugin:
+                    self.reads_teared = await self.plugin.read_from_descriptors(
+                        readables,
+                    )
+        # Wait until client buffer has flushed when reads has teared down but we can still write
+        if self.reads_teared and not self.work.has_buffer():
             return True
-        # Invoke plugin.read_from_descriptors
-        if self.plugin:
-            teardown = await self.plugin.read_from_descriptors(readables)
-            if teardown:
-                return True
         return False
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
