@@ -140,21 +140,23 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
         self.writes_teared = await self.handle_writables(writables)
-        if not self.writes_teared:
-            # Invoke plugin.write_to_descriptors
+        if self.writes_teared:
+            return True
+        # Invoke plugin.write_to_descriptors
+        if self.plugin:
+            self.writes_teared = await self.plugin.write_to_descriptors(writables)
+            if self.writes_teared:
+                return True
+        # Read from ready to read sockets
+        self.reads_teared = await self.handle_readables(readables)
+        if not self.reads_teared:
+            # Invoke plugin.read_from_descriptors
             if self.plugin:
-                self.writes_teared = await self.plugin.write_to_descriptors(writables)
-            if not self.writes_teared:
-                # Read from ready to read sockets
-                self.reads_teared = await self.handle_readables(readables)
-                if not self.reads_teared:
-                    # Invoke plugin.read_from_descriptors
-                    if self.plugin:
-                        self.reads_teared = await self.plugin.read_from_descriptors(
-                            readables,
-                        )
+                self.reads_teared = await self.plugin.read_from_descriptors(
+                    readables,
+                )
         # Wait until client buffer has flushed when reads has teared down but we can still write
-        if self.reads_teared and not self.writes_teared and not self.work.has_buffer():
+        if self.reads_teared and not self.work.has_buffer():
             return True
         return False
 
