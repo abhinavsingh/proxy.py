@@ -150,6 +150,8 @@
     # On Macbook Pro M2 2022
     ❯ python --version
     Python 3.11.8
+    ❯ oha --version
+    oha 1.4.3
     ❯ ./benchmark/compare.sh
       CONCURRENCY: 100 workers, DURATION: 1m, TIMEOUT: 1sec
       =============================
