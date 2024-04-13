@@ -13,7 +13,7 @@ pytest==8.1.1; python_version >= '3.11'
 pytest-cov==5.0.0; python_version >= '3.11'
 pytest-xdist == 3.5.0; python_version >= '3.11'
 pytest-mock==3.14.0; python_version >= '3.11'
-pytest-asyncio==0.23.6; python_version >= '3.11'
+pytest-asyncio==0.21.1; python_version >= '3.11'
 autopep8==1.6.0
 mypy==0.971
 py-spy==0.3.12
