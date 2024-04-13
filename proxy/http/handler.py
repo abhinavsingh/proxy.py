@@ -152,7 +152,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                     # Invoke plugin.read_from_descriptors
                     if self.plugin:
                         self.reads_teardown = await self.plugin.read_from_descriptors(
-                            readables
+                            readables,
                         )
         # Wait until client buffer has flushed when reads has teared down, but we can still write
         if (
