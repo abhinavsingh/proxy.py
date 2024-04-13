@@ -13,7 +13,7 @@
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
 [![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10&color=blue&style=flat-square)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11&color=blue&style=flat-square)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
 [![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
@@ -2366,7 +2366,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc5.dev36+g6c9d0315.d20240411
+proxy.py v2.4.4rc6.dev11+gac1f05d7.d20240413
 
 options:
   -h, --help            show this help message and exit
@@ -2489,8 +2489,8 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv/lib/py
-                        thon3.10/site-packages/certifi/cacert.pem. Provide
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3118/li
+                        b/python3.11/site-packages/certifi/cacert.pem. Provide
                         path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE

@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import asyncio
+from abc import abstractmethod
 from typing import Any, Optional
 from multiprocessing import connection
 
@@ -37,3 +38,7 @@ class BaseRemoteExecutor(Threadless[connection.Connection]):
     def receive_from_work_queue(self) -> bool:
         self.work(self.work_queue.recv())
         return False
+
+    @abstractmethod
+    def work(self, *args: Any) -> None:
+        raise NotImplementedError()

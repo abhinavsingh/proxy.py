@@ -120,7 +120,7 @@ lib-mypy:
 	tox -e lint -- mypy --all-files
 
 lib-pytest:
-	$(PYTHON) -m tox -e python -- -v
+	$(PYTHON) -m tox -e py -- -v
 
 lib-test: lib-clean lib-check lib-lint lib-pytest
 
