@@ -49,6 +49,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
         self.plugin: Optional[HttpProtocolHandlerPlugin] = None
+        self.writes_teardown: bool = False
+        self.reads_teardown: bool = False
 
     ##
     # initialize, is_inactive, shutdown, get_events, handle_events
@@ -128,9 +130,6 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                 else:
                     events[wfileno] |= selectors.EVENT_WRITE
         return events
-
-    writes_teardown: bool = False
-    reads_teardown: bool = False
 
     # We override super().handle_events and never call it
     async def handle_events(
