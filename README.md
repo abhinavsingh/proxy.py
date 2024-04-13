@@ -147,50 +147,60 @@
   - Made to handle `tens-of-thousands` connections / sec
 
     ```console
-    # On Macbook Pro 2019 / 2.4 GHz 8-Core Intel Core i9 / 32 GB RAM
-    ❯ ./helper/benchmark.sh
-      CONCURRENCY: 100 workers, TOTAL REQUESTS: 100000 req
-
+    # On Macbook Pro M2 2022
+    ❯ python --version
+    Python 3.11.8
+    ❯ ./benchmark/compare.sh
+      CONCURRENCY: 100 workers, DURATION: 1m, TIMEOUT: 1sec
+      =============================
+      Benchmarking Proxy.Py
+      Server (pid:75969) running
       Summary:
-        Success rate:	1.0000
-        Total:	2.5489 secs
-        Slowest:	0.0443 secs
-        Fastest:	0.0006 secs
-        Average:	0.0025 secs
-        Requests/sec:	39232.6572
+        Success rate: 100.00%
+        Total:        60.0006 secs
+        Slowest:      0.2525 secs
+        Fastest:      0.0002 secs
+        Average:      0.0019 secs
+        Requests/sec: 51667.3774
 
-        Total data:	1.81 MiB
-        Size/request:	19 B
-        Size/sec:	727.95 KiB
+        Total data:   56.17 MiB
+        Size/request: 19 B
+        Size/sec:     958.64 KiB
 
       Response time histogram:
-        0.001 [5006]  |■■■■■
-        0.001 [19740] |■■■■■■■■■■■■■■■■■■■■■
-        0.002 [29701] |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
-        0.002 [21278] |■■■■■■■■■■■■■■■■■■■■■■
-        0.003 [15376] |■■■■■■■■■■■■■■■■
-        0.004 [6644]  |■■■■■■■
-        0.004 [1609]  |■
-        0.005 [434]   |
-        0.006 [83]    |
-        0.006 [29]    |
-        0.007 [100]   |
+        0.000 [1]       |
+        0.025 [3073746] |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■
+        0.051 [10559]   |
+        0.076 [4980]    |
+        0.101 [2029]    |
+        0.126 [5896]    |
+        0.152 [2466]    |
+        0.177 [116]     |
+        0.202 [40]      |
+        0.227 [52]      |
+        0.253 [87]      |
 
-      Latency distribution:
-        10% in 0.0014 secs
-        25% in 0.0018 secs
-        50% in 0.0023 secs
-        75% in 0.0030 secs
-        90% in 0.0036 secs
-        95% in 0.0040 secs
-        99% in 0.0047 secs
+      Response time distribution:
+        10.00% in 0.0005 secs
+        25.00% in 0.0007 secs
+        50.00% in 0.0009 secs
+        75.00% in 0.0014 secs
+        90.00% in 0.0021 secs
+        95.00% in 0.0035 secs
+        99.00% in 0.0198 secs
+        99.90% in 0.1262 secs
+        99.99% in 0.1479 secs
 
       Details (average, fastest, slowest):
-        DNS+dialup:	0.0025 secs, 0.0015 secs, 0.0030 secs
-        DNS-lookup:	0.0000 secs, 0.0000 secs, 0.0001 secs
+        DNS+dialup:   0.0018 secs, 0.0004 secs, 0.0031 secs
+        DNS-lookup:   0.0000 secs, 0.0000 secs, 0.0002 secs
 
       Status code distribution:
-        [200] 100000 responses
+        [200] 3099972 responses
+
+      Error distribution:
+        [100] aborted due to deadline
+      =============================
     ```
 
     Consult [Threads vs Threadless](#threads-vs-threadless) and [Threadless Remote vs Local Execution Mode](#threadless-remote-vs-local-execution-mode) to control number of CPU cores utilized.
@@ -2322,7 +2332,7 @@ See [Benchmark](https://github.com/abhinavsingh/proxy.py/tree/develop/benchmark)
 To run standalone benchmark for `proxy.py`, use the following command from repo root:
 
 ```console
-❯ ./helper/benchmark.sh
+❯ ./benchmark/compare.sh
 ```
 
 # Flags
