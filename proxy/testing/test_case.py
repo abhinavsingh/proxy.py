@@ -42,6 +42,7 @@ class TestCase(unittest.TestCase):
         cls.PROXY.flags.plugins[b'HttpProxyBasePlugin'].append(
             CacheResponsesPlugin,
         )
+        # pylint: disable=unnecessary-dunder-call
         cls.PROXY.__enter__()
         assert cls.PROXY.acceptors
         cls.wait_for_server(cls.PROXY.flags.port)

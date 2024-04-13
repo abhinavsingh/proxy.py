@@ -22,9 +22,7 @@ class TestHttp2WithProxy(TestCase):
             headers={'accept': 'application/json'},
             verify=httpx.create_ssl_context(http2=True),
             timeout=httpx.Timeout(timeout=5.0),
-            proxies={
-                'all://': 'http://localhost:%d' % self.PROXY.flags.port,
-            },
+            proxy='http://localhost:%d' % self.PROXY.flags.port,
         )
         self.assertEqual(response.status_code, 200)
 
