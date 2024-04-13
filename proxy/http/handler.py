@@ -147,14 +147,15 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             self.writes_teared = await self.plugin.write_to_descriptors(writables)
             if self.writes_teared:
                 return True
-        # Read from ready to read sockets
-        self.reads_teared = await self.handle_readables(readables)
+        # Read from ready to read sockets if reads have not already teared down
         if not self.reads_teared:
-            # Invoke plugin.read_from_descriptors
-            if self.plugin:
-                self.reads_teared = await self.plugin.read_from_descriptors(
-                    readables,
-                )
+            self.reads_teared = await self.handle_readables(readables)
+            if not self.reads_teared:
+                # Invoke plugin.read_from_descriptors
+                if self.plugin:
+                    self.reads_teared = await self.plugin.read_from_descriptors(
+                        readables,
+                    )
         # Wait until client buffer has flushed when reads has teared down but we can still write
         if self.reads_teared and not self.work.has_buffer():
             return True
