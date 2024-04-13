@@ -49,8 +49,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
         if not self.flags.threadless:
             self.selector = selectors.DefaultSelector()
         self.plugin: Optional[HttpProtocolHandlerPlugin] = None
-        self.writes_teardown: bool = False
-        self.reads_teardown: bool = False
+        self.writes_teared: bool = False
+        self.reads_teared: bool = False
 
     ##
     # initialize, is_inactive, shutdown, get_events, handle_events
@@ -139,26 +139,22 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
     ) -> bool:
         """Returns True if proxy must tear down."""
         # Flush buffer for ready to write sockets
-        self.writes_teardown = await self.handle_writables(writables)
-        if not self.writes_teardown:
+        self.writes_teared = await self.handle_writables(writables)
+        if not self.writes_teared:
             # Invoke plugin.write_to_descriptors
             if self.plugin:
-                self.writes_teardown = await self.plugin.write_to_descriptors(writables)
-            if not self.writes_teardown:
+                self.writes_teared = await self.plugin.write_to_descriptors(writables)
+            if not self.writes_teared:
                 # Read from ready to read sockets
-                self.reads_teardown = await self.handle_readables(readables)
-                if not self.reads_teardown:
+                self.reads_teared = await self.handle_readables(readables)
+                if not self.reads_teared:
                     # Invoke plugin.read_from_descriptors
                     if self.plugin:
-                        self.reads_teardown = await self.plugin.read_from_descriptors(
+                        self.reads_teared = await self.plugin.read_from_descriptors(
                             readables,
                         )
-        # Wait until client buffer has flushed when reads has teared down, but we can still write
-        if (
-            self.reads_teardown
-            and not self.writes_teardown
-            and not self.work.has_buffer()
-        ):
+        # Wait until client buffer has flushed when reads has teared down but we can still write
+        if self.reads_teared and not self.writes_teared and not self.work.has_buffer():
             return True
         return False
 
