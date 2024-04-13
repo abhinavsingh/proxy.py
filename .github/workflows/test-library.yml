@@ -446,7 +446,7 @@ jobs:
         # NOTE: The latest and the lowest supported Pythons are prioritized
         # NOTE: to improve the responsiveness. It's nice to see the most
         # NOTE: important results first.
-        - '3.11.8'
+        - '3.11'
         - 3.6
         - '3.10'
         - 3.9
@@ -502,14 +502,14 @@ jobs:
           }}-
           ${{ runner.os }}-pip-
     - name: Install tox for >= 3.11
-      if: matrix.python == '3.11.8'
+      if: matrix.python == '3.11'
       run: >-
         python -m
         pip install
         --user
         tox==4.14.2
     - name: Install tox for < 3.11
-      if: matrix.python != '3.11.8'
+      if: matrix.python != '3.11'
       run: >-
         python -m
         pip install
