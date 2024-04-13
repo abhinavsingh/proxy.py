@@ -501,7 +501,15 @@ jobs:
             steps.calc-cache-key-py.outputs.py-hash-key
           }}-
           ${{ runner.os }}-pip-
-    - name: Install tox
+    - name: Install tox for >= 3.11
+      if: matrix.python == '3.11.8'
+      run: >-
+        python -m
+        pip install
+        --user
+        tox==4.14.2
+    - name: Install tox for < 3.11
+      if: matrix.python != '3.11.8'
       run: >-
         python -m
         pip install

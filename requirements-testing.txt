@@ -17,7 +17,8 @@ pytest-asyncio==0.23.6; python_version >= '3.11'
 autopep8==1.6.0
 mypy==0.971
 py-spy==0.3.12
-tox==3.28.0
+tox==3.28.0; python_version < '3.11'
+tox==4.14.2; python_version >= '3.11'
 mccabe==0.6.1
 pylint==2.13.7; python_version < '3.11'
 pylint==3.1.0; python_version >= '3.11'
