@@ -47,6 +47,8 @@ COMMA = b','
 DOT = b'.'
 SLASH = b'/'
 AT = b'@'
+AND = b"&"
+EQUAL = b"="
 HTTP_PROTO = b'http'
 HTTPS_PROTO = HTTP_PROTO + b's'
 HTTP_1_0 = HTTP_PROTO.upper() + SLASH + b'1.0'

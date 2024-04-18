@@ -30,6 +30,7 @@ from .common.constants import (
     DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
+    DEFAULT_DATA_DIRECTORY_PATH,
 )
 
 
@@ -143,6 +144,15 @@ flags.add_argument(
     default='openssl',
     help='Default: openssl. Path to openssl binary. ' +
     'By default, assumption is that openssl is in your PATH.',
+)
+
+flags.add_argument(
+    '--data-dir',
+    type=str,
+    default=None,
+    help='Default: {0}. Path to proxypy data directory.'.format(
+        DEFAULT_DATA_DIRECTORY_PATH,
+    ),
 )
 
 

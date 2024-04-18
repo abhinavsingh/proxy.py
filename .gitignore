@@ -36,3 +36,6 @@ build
 
 pyreverse.png
 profile.svg
+
+*-pre-push
+jaxl-api-credentials*.json
