@@ -145,6 +145,13 @@ flags.add_argument(
     'By default, assumption is that openssl is in your PATH.',
 )
 
+flags.add_argument(
+    '--data-dir',
+    type=str,
+    default=None,
+    help='Default: ~/.proxypy. Path to proxypy data directory.',
+)
+
 
 class Proxy:
     """Proxy is a context manager to control proxy.py library core.

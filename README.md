@@ -2357,8 +2357,9 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
-          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
-          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--data-dir DATA_DIR] [--enable-proxy-protocol] [--enable-conn-pool]
+          [--key-file KEY_FILE] [--cert-file CERT_FILE]
+          [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE]
           [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
@@ -2378,7 +2379,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc6.dev11+gac1f05d7.d20240413
+proxy.py v2.4.4rc6.dev85+g9335918b
 
 options:
   -h, --help            show this help message and exit
@@ -2459,6 +2460,7 @@ options:
   --pid-file PID_FILE   Default: None. Save "parent" process ID to a file.
   --openssl OPENSSL     Default: openssl. Path to openssl binary. By default,
                         assumption is that openssl is in your PATH.
+  --data-dir DATA_DIR   Default: ~/.proxypy. Path to proxypy data directory.
   --enable-proxy-protocol
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.
@@ -2501,9 +2503,9 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3118/li
-                        b/python3.11/site-packages/certifi/cacert.pem. Provide
-                        path to custom CA bundle for peer certificate
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv31010/l
+                        ib/python3.10/site-packages/certifi/cacert.pem.
+                        Provide path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
