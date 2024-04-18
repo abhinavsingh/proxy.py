@@ -188,7 +188,7 @@ jobs:
     - name: Set the expected dist artifact names
       id: artifact-name
       run: |
-        print('::set-output name=sdist::proxy.py-${{
+        print('::set-output name=sdist::proxy_py-${{
             steps.request-check.outputs.release-requested == 'true'
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version

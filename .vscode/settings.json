@@ -19,7 +19,7 @@
   "typescript.preferences.quoteStyle": "single",
   "[python]": {
     "editor.wordBasedSuggestions": "matchingDocuments",
-    "editor.defaultFormatter": null
+    "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "python.testing.unittestEnabled": false,
   "python.testing.autoTestDiscoverOnSaveEnabled": true,
