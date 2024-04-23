@@ -1,0 +1,15 @@
+[Unit]
+Description=ProxyPy Server
+After=network.target
+
+[Service]
+Type=simple
+User=proxypy
+Group=proxypy
+ExecStart=proxy --hostname 0.0.0.0
+Restart=always
+SyslogIdentifier=proxypy
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
