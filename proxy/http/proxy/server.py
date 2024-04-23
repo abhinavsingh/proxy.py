@@ -726,9 +726,9 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         ):
             raise HttpProtocolException(
                 f'For certificate generation all the following flags are mandatory: '
-                f'--ca-cert-file:{ self.flags.ca_cert_file }, '
-                f'--ca-key-file:{ self.flags.ca_key_file }, '
-                f'--ca-signing-key-file:{ self.flags.ca_signing_key_file }',
+                f'--ca-cert-file:{ self.flags.ca_cert_file}, '
+                f'--ca-key-file:{ self.flags.ca_key_file}, '
+                f'--ca-signing-key-file:{ self.flags.ca_signing_key_file}',
             )
         cert_file_path = HttpProxyPlugin.generated_cert_file_path(
             self.flags.ca_cert_dir, text_(self.request.host),
