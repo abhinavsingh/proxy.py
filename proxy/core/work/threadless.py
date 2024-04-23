@@ -191,13 +191,21 @@ class Threadless(ABC, Generic[T]):
             #
             # TODO: Also remove offending work from pool to avoid spin loop.
             elif fileno != -1:
-                self.selector.register(fileno, events=mask, data=work_id)
-                self.registered_events_by_work_ids[work_id][fileno] = mask
-                logger.debug(
-                    'fd#{0} registered for mask#{1} by work#{2}'.format(
-                        fileno, mask, work_id,
-                    ),
-                )
+                try:
+                    self.selector.register(fileno, events=mask, data=work_id)
+                    self.registered_events_by_work_ids[work_id][fileno] = mask
+                    logger.debug(
+                        'fd#{0} registered for mask#{1} by work#{2}'.format(
+                            fileno,
+                            mask,
+                            work_id,
+                        ),
+                    )
+                except KeyError as exc:
+                    logger.warning(
+                        'KeyError when trying to register fd#{0}'.format(fileno),
+                        exc_info=exc,
+                    )
 
     async def _update_conn_pool_events(self) -> None:
         if not self._upstream_conn_pool:

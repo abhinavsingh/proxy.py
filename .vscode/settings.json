@@ -41,5 +41,19 @@
   "python.linting.flake8Args": ["--config", ".flake8"],
   "python.linting.mypyEnabled": true,
   "python.formatting.provider": "autopep8",
-  "autoDocstring.docstringFormat": "sphinx"
+  "autoDocstring.docstringFormat": "sphinx",
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": "\\.py$",
+        "isAsync": false,
+        "cmd": "./.venv/bin/autoflake --in-place --remove-all-unused-imports \"${file}\""
+      },
+      {
+        "match": "\\.py$",
+        "isAsync": false,
+        "cmd": "./.venv/bin/isort \"${file}\""
+      }
+    ]
+  }
 }
