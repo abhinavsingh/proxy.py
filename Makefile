@@ -31,7 +31,7 @@ OPEN=$(shell which xdg-open)
 endif
 
 .PHONY: all https-certificates sign-https-certificates ca-certificates
-.PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest
+.PHONY: lib-check lib-clean lib-test lib-package lib-coverage lib-lint lib-pytest lib-build
 .PHONY: lib-release-test lib-release lib-profile lib-doc lib-pre-commit
 .PHONY: lib-dep lib-flake8 lib-mypy lib-speedscope container-buildx-all-platforms
 .PHONY: container container-run container-release container-build container-buildx
@@ -124,8 +124,10 @@ lib-pytest:
 
 lib-test: lib-clean lib-check lib-lint lib-pytest
 
-lib-package: lib-clean lib-check
+lib-build:
 	$(PYTHON) -m tox -e cleanup-dists,build-dists,metadata-validation
+
+lib-package: lib-clean lib-check lib-build
 
 lib-release-test: lib-package
 	twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
