@@ -128,8 +128,8 @@ class WebsocketFrame:
             )
         else:
             raise ValueError(
-                f'Invalid payload_length { self.payload_length},'
-                f'maximum allowed { 1 << 64}',
+                f'Invalid payload_length { self.payload_length },'
+                f'maximum allowed { 1 << 64 }',
             )
         if self.masked and self.data:
             mask = secrets.token_bytes(4) if self.mask is None else self.mask
