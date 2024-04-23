@@ -103,7 +103,7 @@ class SshTunnelListener(BaseSshTunnelListener):
             handler=self.handler.on_connection,
         )
         self.forwarded.add(remote_addr)
-        logger.debug("%s:%d forwarding successful..." % remote_addr)
+        logger.debug('%s:%d forwarding successful...' % remote_addr)
 
     def stop_port_forward(self, remote_addr: 'HostPort') -> None:
         assert self.transport is not None
@@ -128,7 +128,7 @@ class SshTunnelListener(BaseSshTunnelListener):
             auth_timeout=7,
         )
         logger.debug(
-            "SSH connection established to %s:%d..."
+            'SSH connection established to %s:%d...'
             % (
                 self.flags.tunnel_hostname,
                 self.flags.tunnel_port,
