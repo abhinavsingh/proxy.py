@@ -99,15 +99,15 @@ class AcceptorPool:
         self._start()
         execution_mode = (
             (
-                "threadless (local)"
+                'threadless (local)'
                 if self.flags.local_executor
-                else "threadless (remote)"
+                else 'threadless (remote)'
             )
             if self.flags.threadless
-            else "threaded"
+            else 'threaded'
         )
         logger.debug(
-            "Started %d acceptors in %s mode"
+            'Started %d acceptors in %s mode'
             % (
                 self.flags.num_acceptors,
                 execution_mode,
@@ -127,7 +127,7 @@ class AcceptorPool:
             self.fd_queues[index].close()
 
     def shutdown(self) -> None:
-        logger.debug("Shutting down %d acceptors" % self.flags.num_acceptors)
+        logger.debug('Shutting down %d acceptors' % self.flags.num_acceptors)
         for acceptor in self.acceptors:
             acceptor.running.set()
         for acceptor in self.acceptors:
