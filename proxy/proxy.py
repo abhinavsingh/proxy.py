@@ -359,7 +359,7 @@ class Proxy:
 
     @staticmethod
     def _handle_exit_signal(signum: int, _frame: Any) -> None:
-        # logger.info('Received signal %d' % signum)
+        logger.debug('Received signal %d' % signum)
         sys.exit(0)
 
     def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
