@@ -101,6 +101,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         if b'HttpWebServerBasePlugin' in self.flags.plugins:
             self._initialize_web_plugins()
 
+        self._response_size = 0
+        self._post_request_data_size = 0
+
     @staticmethod
     def protocols() -> List[int]:
         return [httpProtocols.WEB_SERVER]
@@ -138,17 +141,17 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
     def on_request_complete(self) -> Union[socket.socket, bool]:
         path = self.request.path or b'/'
         teardown = self._try_route(path)
-        # Try route signaled to teardown
-        # or if it did find a valid route
-        if teardown or self.route is not None:
+        if teardown:
             return teardown
         # No-route found, try static serving if enabled
-        if self.flags.enable_static_server:
-            self._try_static_or_404(path)
+        if self.route is None:
+            if self.flags.enable_static_server:
+                self._try_static_or_404(path)
+                return True
+            # Catch all unhandled web server requests, return 404
+            self.client.queue(NOT_FOUND_RESPONSE_PKT)
             return True
-        # Catch all unhandled web server requests, return 404
-        self.client.queue(NOT_FOUND_RESPONSE_PKT)
-        return True
+        return False
 
     async def get_descriptors(self) -> Descriptors:
         r, w = [], []
@@ -173,6 +176,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         return False
 
     def on_client_data(self, raw: memoryview) -> None:
+        self._post_request_data_size += len(raw)
+        if self.route and self.route.on_client_data(self.request, raw) is None:
+            return
         if self.switched_protocol == httpProtocolTypes.WEBSOCKET:
             # TODO(abhinavsingh): Do we really tobytes() here?
             # Websocket parser currently doesn't depend on internal
@@ -211,6 +217,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.pipeline_request = None
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
+        self._response_size += sum([len(c) for c in chunk])
         return chunk
 
     def on_client_connection_close(self) -> None:
@@ -221,11 +228,15 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # Request
             'request_method': text_(self.request.method),
             'request_path': text_(self.request.path),
-            'request_bytes': self.request.total_size,
-            'request_ua': text_(self.request.header(b'user-agent'))
-            if self.request.has_header(b'user-agent')
-            else None,
-            'request_version': None if not self.request.version else text_(self.request.version),
+            'request_bytes': self.request.total_size + self._post_request_data_size,
+            'request_ua': (
+                text_(self.request.header(b'user-agent'))
+                if self.request.has_header(b'user-agent')
+                else None
+            ),
+            'request_version': (
+                None if not self.request.version else text_(self.request.version)
+            ),
             # Response
             #
             # TODO: Track and inject web server specific response attributes
@@ -234,7 +245,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # several attributes required below.  At least for code and
             # reason attributes.
             #
-            # 'response_bytes': self.response.total_size,
+            'response_bytes': self._response_size,
             # 'response_code': text_(self.response.code),
             # 'response_reason': text_(self.response.reason),
         }
@@ -256,8 +267,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
 
     @property
     def _protocol(self) -> Tuple[bool, int]:
-        do_ws_upgrade = self.request.is_connection_upgrade and \
-            self.request.header(b'upgrade').lower() == b'websocket'
+        do_ws_upgrade = self.request.is_websocket_upgrade
         return do_ws_upgrade, httpProtocolTypes.WEBSOCKET \
             if do_ws_upgrade \
             else httpProtocolTypes.HTTPS \
@@ -271,7 +281,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.route = self.routes[protocol][route]
                 assert self.route
                 # Optionally, upgrade protocol
-                if do_ws_upgrade:
+                if do_ws_upgrade and self.route.do_upgrade(self.request):
                     self.switch_to_websocket()
                     assert self.route
                     # Invoke plugin.on_websocket_open
@@ -279,9 +289,11 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 else:
                     # Invoke plugin.handle_request
                     self.route.handle_request(self.request)
-                    if self.request.has_header(b'connection') and \
-                            self.request.header(b'connection').lower() == b'close':
-                        return True
+                    # if self.request.has_header(b'connection') and \
+                    #         self.request.header(b'connection').lower() == b'close':
+                    #     return True
+                # Bailout on first match
+                break
         return False
 
     def _try_static_or_404(self, path: bytes) -> None:
