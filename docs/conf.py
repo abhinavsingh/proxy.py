@@ -324,6 +324,7 @@ nitpick_ignore = [
     (_py_class_role, 're.Pattern'),
     (_py_class_role, 'proxy.core.base.tcp_server.T'),
     (_py_class_role, 'proxy.common.types.RePattern'),
+    (_py_class_role, 'BaseSshTunnelHandler'),
     (_py_obj_role, 'proxy.core.work.threadless.T'),
     (_py_obj_role, 'proxy.core.work.work.T'),
     (_py_obj_role, 'proxy.core.base.tcp_server.T'),
