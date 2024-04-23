@@ -318,6 +318,7 @@ nitpick_ignore = [
     (_py_class_role, 'connection.Connection'),
     (_py_class_role, 'EventQueue'),
     (_py_class_role, 'T'),
+    (_py_class_role, 'module'),
     (_py_class_role, 'HostPort'),
     (_py_class_role, 'TcpOrTlsSocket'),
     (_py_class_role, 're.Pattern'),
