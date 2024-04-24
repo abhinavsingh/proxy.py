@@ -2341,25 +2341,25 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
-          [--tunnel-username TUNNEL_USERNAME]
+usage: -m [-h] [--threadless] [--threaded] [--num-workers NUM_WORKERS]
+          [--enable-events] [--local-executor LOCAL_EXECUTOR]
+          [--backlog BACKLOG] [--hostname HOSTNAME]
+          [--hostnames HOSTNAMES [HOSTNAMES ...]] [--port PORT]
+          [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
+          [--unix-socket-path UNIX_SOCKET_PATH]
+          [--num-acceptors NUM_ACCEPTORS] [--tunnel-hostname TUNNEL_HOSTNAME]
+          [--tunnel-port TUNNEL_PORT] [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
-          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
-          [--hostname HOSTNAME] [--hostnames HOSTNAMES [HOSTNAMES ...]]
-          [--port PORT] [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
-          [--unix-socket-path UNIX_SOCKET_PATH]
-          [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
-          [--log-file LOG_FILE] [--log-format LOG_FORMAT]
-          [--open-file-limit OPEN_FILE_LIMIT]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--version]
+          [--log-level LOG_LEVEL] [--log-file LOG_FILE]
+          [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
-          [--data-dir DATA_DIR] [--enable-proxy-protocol] [--enable-conn-pool]
-          [--key-file KEY_FILE] [--cert-file CERT_FILE]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--data-dir DATA_DIR] [--ssh-listener-klass SSH_LISTENER_KLASS]
+          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
+          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE]
           [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
@@ -2379,25 +2379,10 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc6.dev85+g9335918b
+proxy.py v2.4.4rc6.dev164+g73497f30
 
 options:
   -h, --help            show this help message and exit
-  --tunnel-hostname TUNNEL_HOSTNAME
-                        Default: None. Remote hostname or IP address to which
-                        SSH tunnel will be established.
-  --tunnel-port TUNNEL_PORT
-                        Default: 22. SSH port of the remote host.
-  --tunnel-username TUNNEL_USERNAME
-                        Default: None. Username to use for establishing SSH
-                        tunnel.
-  --tunnel-ssh-key TUNNEL_SSH_KEY
-                        Default: None. Private key path in pem format
-  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
-                        Default: None. Private key passphrase
-  --tunnel-remote-port TUNNEL_REMOTE_PORT
-                        Default: 8899. Remote port which will be forwarded
-                        locally for proxy.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2434,6 +2419,21 @@ options:
                         --host and --port flags are ignored
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
+  --tunnel-hostname TUNNEL_HOSTNAME
+                        Default: None. Remote hostname or IP address to which
+                        SSH tunnel will be established.
+  --tunnel-port TUNNEL_PORT
+                        Default: 22. SSH port of the remote host.
+  --tunnel-username TUNNEL_USERNAME
+                        Default: None. Username to use for establishing SSH
+                        tunnel.
+  --tunnel-ssh-key TUNNEL_SSH_KEY
+                        Default: None. Private key path in pem format
+  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
+                        Default: None. Private key passphrase
+  --tunnel-remote-port TUNNEL_REMOTE_PORT
+                        Default: 8899. Remote port which will be forwarded
+                        locally for proxy.
   --version, -v         Prints proxy.py version.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
@@ -2461,6 +2461,9 @@ options:
   --openssl OPENSSL     Default: openssl. Path to openssl binary. By default,
                         assumption is that openssl is in your PATH.
   --data-dir DATA_DIR   Default: ~/.proxypy. Path to proxypy data directory.
+  --ssh-listener-klass SSH_LISTENER_KLASS
+                        Default: proxy.core.ssh.listener.SshTunnelListener. An
+                        implementation of BaseSshTunnelListener
   --enable-proxy-protocol
                         Default: False. If used, will enable proxy protocol.
                         Only version 1 is currently supported.

@@ -14,10 +14,10 @@ import time
 import pprint
 import signal
 import logging
+import argparse
 import threading
-from typing import TYPE_CHECKING, Any, List, Optional, cast
+from typing import TYPE_CHECKING, Any, List, Type, Optional, cast
 
-from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
@@ -25,16 +25,19 @@ from .common.utils import bytes_
 from .core.work.fd import RemoteFdExecutor
 from .core.acceptor import AcceptorPool
 from .core.listener import ListenerPool
+from .core.ssh.base import BaseSshTunnelListener
 from .common.constants import (
     IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
     DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
+    DEFAULT_SSH_LISTENER_KLASS,
 )
 
 
 if TYPE_CHECKING:   # pragma: no cover
     from .core.listener import TcpSocketListener
+    from .core.ssh.base import BaseSshTunnelHandler
 
 
 logger = logging.getLogger(__name__)
@@ -152,6 +155,15 @@ flags.add_argument(
     help='Default: ~/.proxypy. Path to proxypy data directory.',
 )
 
+flags.add_argument(
+    '--ssh-listener-klass',
+    type=str,
+    default=DEFAULT_SSH_LISTENER_KLASS,
+    help='Default: '
+    + DEFAULT_SSH_LISTENER_KLASS
+    + '.  An implementation of BaseSshTunnelListener',
+)
+
 
 class Proxy:
     """Proxy is a context manager to control proxy.py library core.
@@ -175,13 +187,13 @@ class Proxy:
     """
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
+        self.opts = opts
         self.flags = FlagParser.initialize(input_args, **opts)
         self.listeners: Optional[ListenerPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
-        self.ssh_http_protocol_handler: Optional[SshHttpProtocolHandler] = None
-        self.ssh_tunnel_listener: Optional[SshTunnelListener] = None
+        self.ssh_tunnel_listener: Optional[BaseSshTunnelListener] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -261,20 +273,28 @@ class Proxy:
         self.acceptors.setup()
         # Start SSH tunnel acceptor if enabled
         if self.flags.enable_ssh_tunnel:
-            self.ssh_http_protocol_handler = SshHttpProtocolHandler(
+            self.ssh_tunnel_listener = self._setup_tunnel(
                 flags=self.flags,
-            )
-            self.ssh_tunnel_listener = SshTunnelListener(
-                flags=self.flags,
-                on_connection_callback=self.ssh_http_protocol_handler.on_connection,
-            )
-            self.ssh_tunnel_listener.setup()
-            self.ssh_tunnel_listener.start_port_forward(
-                ('', self.flags.tunnel_remote_port),
+                **self.opts,
             )
         # TODO: May be close listener fd as we don't need it now
         if threading.current_thread() == threading.main_thread():
             self._register_signals()
+
+    @staticmethod
+    def _setup_tunnel(
+        flags: argparse.Namespace,
+        ssh_handler_klass: Type['BaseSshTunnelHandler'],
+        ssh_listener_klass: Any,
+        **kwargs: Any,
+    ) -> BaseSshTunnelListener:
+        tunnel = cast(Type[BaseSshTunnelListener], ssh_listener_klass)(
+            flags=flags,
+            handler=ssh_handler_klass(flags=flags),
+            **kwargs,
+        )
+        tunnel.setup()
+        return tunnel
 
     def shutdown(self) -> None:
         if self.flags.enable_ssh_tunnel:
@@ -339,14 +359,14 @@ class Proxy:
 
     @staticmethod
     def _handle_exit_signal(signum: int, _frame: Any) -> None:
-        logger.info('Received signal %d' % signum)
+        logger.debug('Received signal %d' % signum)
         sys.exit(0)
 
     def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
         pprint.pprint(self.flags.__dict__)  # pragma: no cover
 
 
-def sleep_loop() -> None:
+def sleep_loop(p: Optional[Proxy] = None) -> None:
     while True:
         try:
             time.sleep(1)
@@ -355,8 +375,8 @@ def sleep_loop() -> None:
 
 
 def main(**opts: Any) -> None:
-    with Proxy(sys.argv[1:], **opts):
-        sleep_loop()
+    with Proxy(sys.argv[1:], **opts) as p:
+        sleep_loop(p)
 
 
 def entry_point() -> None:
