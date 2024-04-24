@@ -1,4 +1,7 @@
 ---
+default_language_version:
+  python: python3.10
+
 repos:
 - repo: https://github.com/asottile/add-trailing-comma.git
   rev: v2.0.1
