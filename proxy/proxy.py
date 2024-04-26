@@ -18,6 +18,7 @@ import argparse
 import threading
 from typing import TYPE_CHECKING, Any, List, Type, Optional, cast
 
+from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
 from .common.flag import FlagParser, flags
@@ -284,13 +285,15 @@ class Proxy:
     @staticmethod
     def _setup_tunnel(
         flags: argparse.Namespace,
-        ssh_handler_klass: Type['BaseSshTunnelHandler'],
-        ssh_listener_klass: Any,
+        ssh_handler_klass: Optional[Type['BaseSshTunnelHandler']] = None,
+        ssh_listener_klass: Optional[Any] = None,
         **kwargs: Any,
     ) -> BaseSshTunnelListener:
-        tunnel = cast(Type[BaseSshTunnelListener], ssh_listener_klass)(
+        listener_klass = ssh_listener_klass or SshTunnelListener
+        handler_klass = ssh_handler_klass or SshHttpProtocolHandler
+        tunnel = cast(Type[BaseSshTunnelListener], listener_klass)(
             flags=flags,
-            handler=ssh_handler_klass(flags=flags),
+            handler=handler_klass(flags=flags),
             **kwargs,
         )
         tunnel.setup()
