@@ -2340,19 +2340,19 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--threadless] [--threaded] [--num-workers NUM_WORKERS]
-          [--enable-events] [--local-executor LOCAL_EXECUTOR]
-          [--backlog BACKLOG] [--hostname HOSTNAME]
-          [--hostnames HOSTNAMES [HOSTNAMES ...]] [--port PORT]
-          [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
-          [--unix-socket-path UNIX_SOCKET_PATH]
-          [--num-acceptors NUM_ACCEPTORS] [--tunnel-hostname TUNNEL_HOSTNAME]
-          [--tunnel-port TUNNEL_PORT] [--tunnel-username TUNNEL_USERNAME]
+usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
+          [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--version]
-          [--log-level LOG_LEVEL] [--log-file LOG_FILE]
-          [--log-format LOG_FORMAT] [--open-file-limit OPEN_FILE_LIMIT]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
+          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
+          [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
+          [--hostname HOSTNAME] [--hostnames HOSTNAMES [HOSTNAMES ...]]
+          [--port PORT] [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
+          [--unix-socket-path UNIX_SOCKET_PATH]
+          [--num-acceptors NUM_ACCEPTORS] [--version] [--log-level LOG_LEVEL]
+          [--log-file LOG_FILE] [--log-format LOG_FORMAT]
+          [--open-file-limit OPEN_FILE_LIMIT]
           [--plugins PLUGINS [PLUGINS ...]] [--enable-dashboard]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
@@ -2382,6 +2382,21 @@ proxy.py v2.4.4rc6.dev172+ge1879403.d20240425
 
 options:
   -h, --help            show this help message and exit
+  --tunnel-hostname TUNNEL_HOSTNAME
+                        Default: None. Remote hostname or IP address to which
+                        SSH tunnel will be established.
+  --tunnel-port TUNNEL_PORT
+                        Default: 22. SSH port of the remote host.
+  --tunnel-username TUNNEL_USERNAME
+                        Default: None. Username to use for establishing SSH
+                        tunnel.
+  --tunnel-ssh-key TUNNEL_SSH_KEY
+                        Default: None. Private key path in pem format
+  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
+                        Default: None. Private key passphrase
+  --tunnel-remote-port TUNNEL_REMOTE_PORT
+                        Default: 8899. Remote port which will be forwarded
+                        locally for proxy.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2418,21 +2433,6 @@ options:
                         --host and --port flags are ignored
   --num-acceptors NUM_ACCEPTORS
                         Defaults to number of CPU cores.
-  --tunnel-hostname TUNNEL_HOSTNAME
-                        Default: None. Remote hostname or IP address to which
-                        SSH tunnel will be established.
-  --tunnel-port TUNNEL_PORT
-                        Default: 22. SSH port of the remote host.
-  --tunnel-username TUNNEL_USERNAME
-                        Default: None. Username to use for establishing SSH
-                        tunnel.
-  --tunnel-ssh-key TUNNEL_SSH_KEY
-                        Default: None. Private key path in pem format
-  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
-                        Default: None. Private key passphrase
-  --tunnel-remote-port TUNNEL_REMOTE_PORT
-                        Default: 8899. Remote port which will be forwarded
-                        locally for proxy.
   --version, -v         Prints proxy.py version.
   --log-level LOG_LEVEL
                         Valid options: DEBUG, INFO (default), WARNING, ERROR,
@@ -2550,28 +2550,6 @@ options:
                         this option enables proxy.HttpWebServerPlugin.
   --pac-file-url-path PAC_FILE_URL_PATH
                         Default: /. Web server path to serve the PAC file.
-  --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
-                        Default: security. Either "security" (for malware
-                        protection) or "family" (for malware and adult content
-                        protection)
-  --filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS
-                        Default: Blocks Facebook. Comma separated list of IPv4
-                        and IPv6 addresses.
-  --filtered-client-ips-mode FILTERED_CLIENT_IPS_MODE
-                        Default: blacklist. Can be either "whitelist"
-                        (restrict access to specific IPs)or "blacklist" (allow
-                        everything except specific IPs).
-  --filtered-client-ips FILTERED_CLIENT_IPS
-                        Default: 127.0.0.1,::1. Comma separated list of IPv4
-                        and IPv6 addresses.
-  --filtered-url-regex-config FILTERED_URL_REGEX_CONFIG
-                        Default: No config. Comma separated list of IPv4 and
-                        IPv6 addresses.
-
-Proxy.py not working? Report at:
-https://github.com/abhinavsingh/proxy.py/issues/new
-```
-C file.
   --cloudflare-dns-mode CLOUDFLARE_DNS_MODE
                         Default: security. Either "security" (for malware
                         protection) or "family" (for malware and adult content
