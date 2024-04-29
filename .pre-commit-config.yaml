@@ -1,21 +1,21 @@
 ---
 repos:
 - repo: https://github.com/asottile/add-trailing-comma.git
-  rev: v2.0.1
+  rev: v3.1.0
   hooks:
   - id: add-trailing-comma
     args:
     - --py36-plus
 
-- repo: https://github.com/timothycrosley/isort.git
-  rev: 5.12.0
+- repo: https://github.com/PyCQA/isort
+  rev: 5.13.2
   hooks:
   - id: isort
     args:
     - --honor-noqa
 
 - repo: https://github.com/Lucas-C/pre-commit-hooks.git
-  rev: v1.1.7
+  rev: v1.5.5
   hooks:
   - id: remove-tabs
     exclude: |
@@ -28,7 +28,7 @@ repos:
       $
 
 - repo: https://github.com/pre-commit/pre-commit-hooks.git
-  rev: v4.0.1
+  rev: v4.6.0
   hooks:
   # Side-effects:
   - id: trailing-whitespace
@@ -89,7 +89,7 @@ repos:
   - id: debug-statements
 
 - repo: https://github.com/PyCQA/pydocstyle.git
-  rev: 6.1.1
+  rev: 6.3.0
   hooks:
   - id: pydocstyle
     additional_dependencies:
@@ -122,7 +122,7 @@ repos:
       D415,
 
 - repo: https://github.com/codespell-project/codespell
-  rev: v2.1.0
+  rev: v2.2.6
   hooks:
   - id: codespell
     exclude: >
@@ -133,7 +133,7 @@ repos:
       )$
 
 - repo: https://github.com/adrienverge/yamllint.git
-  rev: v1.26.2
+  rev: v1.35.1
   hooks:
   - id: yamllint
     args:
@@ -141,7 +141,7 @@ repos:
     types: [file, yaml]
 
 - repo: https://github.com/PyCQA/flake8.git
-  rev: 3.9.2
+  rev: 7.0.0
   hooks:
   - id: flake8
     language_version: python3.10
@@ -152,7 +152,7 @@ repos:
     - wemake-python-styleguide >= 0.16.1
 
 - repo: https://github.com/pre-commit/mirrors-mypy.git
-  rev: v0.910
+  rev: v1.10.0
   hooks:
   - id: mypy
     additional_dependencies:
