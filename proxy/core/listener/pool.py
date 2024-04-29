@@ -39,9 +39,9 @@ class ListenerPool:
         if self.flags.unix_socket_path:
             self.add(UnixSocketListener)
         hostnames = {self.flags.hostname, *self.flags.hostnames}
-        ports = set(self.flags.ports)
+        ports = list(self.flags.ports)
         if not self.flags.unix_socket_path:
-            ports.add(self.flags.port)
+            ports.append(self.flags.port)
         for hostname, port in itertools.product(hostnames, ports):
             self.add(TcpSocketListener, hostname=hostname, port=port)
 
