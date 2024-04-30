@@ -17,11 +17,14 @@ import sys
 import socket
 import logging
 import argparse
+import tempfile
 import functools
 import ipaddress
 import contextlib
 from types import TracebackType
 from typing import Any, Dict, List, Type, Tuple, Callable, Optional
+
+import _ssl  # noqa: WPS436
 
 from .types import HostPort
 from .constants import (
@@ -34,6 +37,18 @@ if not IS_WINDOWS:  # pragma: no cover
     import resource
 
 logger = logging.getLogger(__name__)
+
+
+def cert_der_to_dict(certificate_der: Optional[bytes]) -> dict[str, Any]:
+    """Parse a DER formatted certificate to a python dict"""
+    if not certificate_der:
+        return {}
+    with tempfile.NamedTemporaryFile() as cert_file:
+        certificate_pem = ssl.DER_cert_to_PEM_cert(certificate_der)
+        cert_file.write(certificate_pem.encode())
+        cert_file.seek(0)
+        certificate = _ssl._test_decode_cert(cert_file.name)
+    return certificate or {}
 
 
 def tls_interception_enabled(flags: argparse.Namespace) -> bool:

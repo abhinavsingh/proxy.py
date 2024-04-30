@@ -56,7 +56,10 @@ class TcpServerConnection(TcpConnection):
             cafile=ca_file,
         )
         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        ctx.check_hostname = hostname is not None
+        if verify_mode == ssl.VerifyMode.CERT_NONE:
+            ctx.check_hostname = False
+        else:
+            ctx.check_hostname = hostname is not None
         ctx.verify_mode = verify_mode
         self.connection.setblocking(True)
         self._conn = ctx.wrap_socket(

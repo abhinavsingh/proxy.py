@@ -1206,6 +1206,8 @@ cached file instead of plain text.
 Now use CA flags with other
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
 
+To intercept TLS traffic from a server using a self-signed certificate add the `--insecure` flag to disable mandatory TLS certificate validation.
+
 ## TLS Interception With Docker
 
 Important notes about TLS Interception with Docker container:
@@ -2362,7 +2364,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--server-recvbuf-size SERVER_RECVBUF_SIZE]
           [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
-          [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
+          [--ca-key-file CA_KEY_FILE] [--insecure] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
           [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-requests]
@@ -2497,6 +2499,7 @@ options:
                         Default: None. CA key to use for signing dynamically
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
+  --insecure            Default: False. Disables certificate verification
   --ca-cert-dir CA_CERT_DIR
                         Default: ~/.proxy/certificates. Directory to store
                         dynamically generated certificates. Also see --ca-key-
@@ -2523,9 +2526,8 @@ options:
                         from responses. Extracted content type is written to
                         the cache directory e.g. video.mp4.
   --cache-dir CACHE_DIR
-                        Default: /Users/abhinavsingh/.proxy/cache. Flag only
-                        applicable when cache plugin is used with on-disk
-                        storage.
+                        Default: /home/kali/.proxy/cache. Flag only applicable
+                        when cache plugin is used with on-disk storage.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
   --enable-web-server   Default: False. Whether to enable

@@ -21,7 +21,7 @@ import socket
 import logging
 import threading
 import subprocess
-from typing import Any, Dict, List, Union, Optional, cast
+from typing import Any, Dict, List, Union, Optional
 
 from .plugin import HttpProxyBasePlugin
 from ..parser import HttpParser, httpParserTypes, httpParserStates
@@ -35,15 +35,16 @@ from ...common.pki import gen_csr, sign_csr, gen_public_key
 from ...core.event import eventNames
 from ...common.flag import flags
 from ...common.types import Readables, Writables, Descriptors
-from ...common.utils import text_
+from ...common.utils import text_, cert_der_to_dict
 from ...core.connection import (
     TcpServerConnection, TcpConnectionUninitializedException,
 )
 from ...common.constants import (
-    COMMA, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH, DEFAULT_CA_CERT_DIR,
-    DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE, DEFAULT_DISABLE_HEADERS,
-    PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HTTP_PROXY,
-    DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT,
+    COMMA, DEFAULT_CA_FILE, DEFAULT_INSECURE, PLUGIN_PROXY_AUTH,
+    DEFAULT_CA_CERT_DIR, DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE,
+    DEFAULT_DISABLE_HEADERS, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_CA_SIGNING_KEY_FILE,
+    DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT,
     DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT,
 )
 
@@ -72,6 +73,13 @@ flags.add_argument(
     default=DEFAULT_CA_KEY_FILE,
     help='Default: None. CA key to use for signing dynamically generated '
     'HTTPS certificates.  If used, must also pass --ca-cert-file and --ca-signing-key-file',
+)
+
+flags.add_argument(
+    '--insecure',
+    action='store_true',
+    default=DEFAULT_INSECURE,
+    help='Default: False. Disables certificate verification',
 )
 
 flags.add_argument(
@@ -760,10 +768,12 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert isinstance(self.upstream.connection, socket.socket)
         do_close = False
         try:
+            verify_mode = ssl.VerifyMode.CERT_NONE if self.flags.insecure else ssl.VerifyMode.CERT_REQUIRED
             self.upstream.wrap(
                 text_(self.request.host),
                 self.flags.ca_file,
                 as_non_blocking=True,
+                verify_mode=verify_mode,
             )
         except ssl.SSLCertVerificationError:    # Server raised certificate verification error
             # When --disable-interception-on-ssl-cert-verification-error flag is on,
@@ -802,7 +812,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         try:
             # TODO: Perform async certificate generation
             generated_cert = self.generate_upstream_certificate(
-                cast(Dict[str, Any], self.upstream.connection.getpeercert()),
+                cert_der_to_dict(self.upstream.connection.getpeercert(True)),
             )
             self.client.wrap(self.flags.ca_signing_key_file, generated_cert)
         except subprocess.TimeoutExpired as e:  # Popen communicate timeout

@@ -29,6 +29,7 @@ from proxy.http.responses import (
 from proxy.core.connection import TcpServerConnection
 from .utils import get_plugin_by_test_name
 from ..test_assertions import Assertions
+from ..certificates.test_cert_data import test_cert_bytes
 
 
 class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
@@ -77,9 +78,12 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
         )
         self.protocol_handler.initialize()
 
-        self.server = self.mock_server_conn.return_value
+        def mock_cert(a: Any) -> Any:
+            return test_cert_bytes
 
+        self.server = self.mock_server_conn.return_value
         self.server_ssl_connection = mocker.MagicMock(spec=ssl.SSLSocket)
+        self.server_ssl_connection.getpeercert = mock_cert
         self.mock_ssl_context.return_value.wrap_socket.return_value = self.server_ssl_connection
         self.client_ssl_connection = mocker.MagicMock(spec=ssl.SSLSocket)
         self.mock_ssl_wrap.return_value = self.client_ssl_connection
@@ -97,8 +101,8 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
 
         # Do not mock the original wrap method
         self.server.wrap.side_effect = \
-            lambda x, y, as_non_blocking: TcpServerConnection.wrap(
-                self.server, x, y, as_non_blocking=as_non_blocking,
+            lambda x, y, as_non_blocking, verify_mode: TcpServerConnection.wrap(
+                self.server, x, y, as_non_blocking=as_non_blocking, verify_mode=verify_mode,
             )
 
         self.server.has_buffer.side_effect = has_buffer
