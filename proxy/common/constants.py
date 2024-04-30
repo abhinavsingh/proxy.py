@@ -125,8 +125,11 @@ DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms}ms'
-DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
-    '{request_method} {request_path} -> {upstream_proxy_pass} - {connection_time_ms}ms'
+DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = (
+    "{client_ip}:{client_port} - "
+    + "{request_method} {request_path} - {request_ua} -> "
+    + "{upstream_proxy_pass} - {connection_time_ms}ms"
+)
 DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
