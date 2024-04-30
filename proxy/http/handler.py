@@ -181,7 +181,7 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             elif self.plugin:
                 self.plugin.on_client_data(data)
         except HttpProtocolException as e:
-            logger.info('HttpProtocolException: %s' % e)
+            logger.warning('HttpProtocolException: %s' % e)
             response: Optional[memoryview] = e.response(self.request)
             if response:
                 self.work.queue(response)
@@ -209,9 +209,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
                     'BrokenPipeError when flushing buffer for client',
                 )
                 return True
-            except OSError:
-                logger.warning(     # pragma: no cover
+            except OSError as exc:
+                logger.exception(  # pragma: no cover
                     'OSError when flushing buffer to client',
+                    exc_info=exc,
                 )
                 return True
         return False

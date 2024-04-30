@@ -47,7 +47,11 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         self.upstream_conn_pool = upstream_conn_pool
 
     @staticmethod
-    def serve_static_file(path: str, min_compression_length: int) -> memoryview:
+    def serve_static_file(
+        path: str,
+        min_compression_length: int,
+        compress: bool = True,
+    ) -> memoryview:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -61,6 +65,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
             return okResponse(
                 content=content,
                 headers=headers,
+                compress=compress,
                 min_compression_length=min_compression_length,
                 # TODO: Should we really close or take advantage of keep-alive?
                 conn_close=True,
