@@ -50,7 +50,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
     def serve_static_file(
         path: str,
         min_compression_length: int,
-        compress: bool = False,
+        compress: bool = True,
     ) -> memoryview:
         try:
             with open(path, 'rb') as f:
