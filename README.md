@@ -2380,7 +2380,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc6.dev8+g81aa82b.d20240429
+proxy.py v2.4.4rc6.dev172+ge1879403.d20240425
 
 options:
   -h, --help            show this help message and exit
@@ -2508,8 +2508,8 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /home/kali/projects/proxy_add_selfsinged/venv
-                        /lib/python3.11/site-packages/certifi/cacert.pem.
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv31013/l
+                        ib/python3.10/site-packages/certifi/cacert.pem.
                         Provide path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
