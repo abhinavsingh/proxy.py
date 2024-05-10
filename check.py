@@ -44,7 +44,7 @@ ALL_PY_FILES = (
 
 # Ensure all python files start with licensing information
 for py_file in ALL_PY_FILES:
-    if py_file.is_file() and py_file.name not in ('_scm_version.py', 'grout.py'):
+    if py_file.is_file() and py_file.name != '_scm_version.py':
         with open(py_file, 'rb') as f:
             code = f.read(len(PY_FILE_PREFIX))
             if code != PY_FILE_PREFIX:
