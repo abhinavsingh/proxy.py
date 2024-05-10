@@ -8,8 +8,7 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
-from .grout import grout
-from .proxy import Proxy, main, sleep_loop, entry_point
+from .proxy import Proxy, main, grout, sleep_loop, entry_point
 from .testing import TestCase
 
 
