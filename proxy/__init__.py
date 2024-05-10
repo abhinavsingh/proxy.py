@@ -8,11 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+from .grout import grout
 from .proxy import Proxy, main, sleep_loop, entry_point
 from .testing import TestCase
 
 
 __all__ = [
+    # Grout entry point. See
+    # https://jaxl.io/
+    'grout',
     # PyPi package entry_point. See
     # https://github.com/abhinavsingh/proxy.py#from-command-line-when-installed-using-pip
     'entry_point',
