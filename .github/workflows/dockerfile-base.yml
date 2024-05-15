@@ -1,5 +1,5 @@
 ---
-name: lib
+name: base
 
 on:   # yamllint disable-line rule:truthy
   workflow_dispatch:
