@@ -1,4 +1,4 @@
-FROM ghcr.io/abhinavsingh/proxy.py:base
+FROM ghcr.io/abhinavsingh/proxy.py:base as builder
 
 LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
   org.opencontainers.image.title="proxy.py" \
@@ -39,6 +39,9 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   rm -rf /root/.cache/ && \
   pip uninstall -y pip
 
+FROM python:3.11-alpine
+COPY --from=builder /README.md /README.md
+COPY --from=builder /proxy /proxy
 ENV PATH="/proxy/venv/bin:${PATH}"
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
