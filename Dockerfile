@@ -34,7 +34,7 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   proxy.py && \
   rm *.whl && \
   if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk --no-cache add openssl; fi && \
-  du -h | sort -hr | grep __pycache__ | awk '{ print $2 }' | xargs rm -rf && \
+  find . -type d -name '__pycache__' | xargs rm -rf && \
   rm -rf /var/cache/apk/* && \
   rm -rf /root/.cache/ && \
   pip uninstall pip
