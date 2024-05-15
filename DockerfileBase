@@ -1,0 +1,34 @@
+FROM python:3.11-alpine
+
+LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
+    com.abhinavsingh.description="⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • \
+    😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • \
+    👮🏿 \"Proxy Server\" framework • 🌐 \"Web Server\" framework • ➵ ➶ ➷ ➠ \"PubSub\" framework • \
+    👷 \"Work\" acceptor & executor framework" \
+    com.abhinavsingh.url="https://github.com/abhinavsingh/proxy.py" \
+    com.abhinavsingh.vcs-url="https://github.com/abhinavsingh/proxy.py" \
+    com.abhinavsingh.docker.cmd="docker run -it --rm -p 8899:8899 abhinavsingh/proxy.py" \
+    org.opencontainers.image.source="https://github.com/abhinavsingh/proxy.py"
+
+ENV PYTHONUNBUFFERED 1
+
+# Install paramiko and cryptography to allow
+# users to use tunneling features using Docker
+RUN apk update && apk --no-cache add \
+    --virtual .builddeps \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
+    python3-dev \
+    cargo \
+    rust \
+    make
+RUN python -m venv /proxy/venv && \
+    /proxy/venv/bin/pip install \
+    -U pip wheel && \
+    /proxy/venv/bin/pip install \
+    paramiko==3.4.0 \
+    cryptography==39.0.1 \
+    --prefer-binary
+RUN apk del .builddeps
