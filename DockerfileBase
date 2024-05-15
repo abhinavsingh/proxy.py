@@ -33,7 +33,7 @@ RUN python -m venv /proxy/venv && \
     -U pip wheel && \
     /proxy/venv/bin/pip install --no-compile --no-cache-dir \
     paramiko==3.4.0 \
-    cryptography==39.0.1 \
+    cryptography==42.0.4 \
     --prefer-binary && \
     apk del .builddeps && \
     find . -type d -name '__pycache__' | xargs rm -rf && \
