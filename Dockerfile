@@ -24,10 +24,10 @@ RUN pip install --upgrade pip && \
   --find-links file:/// \
   proxy.py && \
   rm *.whl && \
-  apk add \
-  py-cryptography && \
   pip install \
-  paramiko==3.4.0
+  paramiko==3.4.0 \
+  cryptography==39.0.1 \
+  --prefer-binary
 
 # Use `--build-arg SKIP_OPENSSL=1` to disable openssl installation
 RUN if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk add openssl; fi
