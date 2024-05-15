@@ -36,6 +36,6 @@ RUN python -m venv /proxy/venv && \
     cryptography==39.0.1 \
     --prefer-binary && \
     apk del .builddeps && \
-    du -h | sort -hr | grep __pycache__ | awk '{ print $2 }' | xargs rm -rf && \
+    find . -type d -name '__pycache__' | xargs rm -rf && \
     rm -rf /var/cache/apk/* && \
     rm -rf /root/.cache/
