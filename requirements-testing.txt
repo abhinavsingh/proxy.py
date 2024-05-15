@@ -17,7 +17,7 @@ pytest-mock==3.14.0; python_version >= '3.11'
 pytest-asyncio==0.21.1; python_version >= '3.11'
 autopep8==1.6.0
 mypy==0.971
-py-spy==0.3.12
+py-spy==0.3.14
 tox==3.28.0; python_version < '3.11'
 tox==4.14.2; python_version >= '3.11'
 mccabe==0.6.1
