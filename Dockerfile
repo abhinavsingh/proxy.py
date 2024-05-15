@@ -17,7 +17,6 @@ ARG PROXYPY_PKG_PATH
 
 COPY README.md /
 COPY $PROXYPY_PKG_PATH /
-COPY requirements-tunnel.txt /
 
 RUN pip install --upgrade pip && \
   pip install \
@@ -26,8 +25,8 @@ RUN pip install --upgrade pip && \
   proxy.py && \
   rm *.whl && \
   pip install \
-  -r requirements-tunnel.txt && \
-  rm requirements-tunnel.txt
+  paramiko==3.4.0 \
+  cryptography==39.0.1
 
 # Use `--build-arg SKIP_OPENSSL=1` to disable openssl installation
 RUN if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk add openssl; fi
