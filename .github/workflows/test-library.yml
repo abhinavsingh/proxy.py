@@ -952,7 +952,6 @@ jobs:
       with:
         username: abhinavsingh
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-    # TODO: openssl image is not published on DockerHub
     - name: Push to DockerHub
       run: >-
         REGISTRY_URL="abhinavsingh/proxy.py";
@@ -964,7 +963,6 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
-        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
