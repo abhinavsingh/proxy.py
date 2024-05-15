@@ -33,7 +33,6 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   --find-links file:/// \
   proxy.py && \
   rm *.whl && \
-  if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk --no-cache add openssl; fi && \
   find . -type d -name '__pycache__' | xargs rm -rf && \
   rm -rf /var/cache/apk/* && \
   rm -rf /root/.cache/ && \
@@ -43,6 +42,12 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
 FROM python:3.11-alpine
 COPY --from=builder /README.md /README.md
 COPY --from=builder /proxy /proxy
+RUN if [[ -z "$SKIP_OPENSSL" ]]; then \
+  apk update && \
+  apk --no-cache add openssl && \
+  rm -rf /var/cache/apk/* && \
+  rm -rf /root/.cache/; \
+  fi
 ENV PATH="/proxy/venv/bin:${PATH}"
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
