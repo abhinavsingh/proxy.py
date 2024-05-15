@@ -23,11 +23,21 @@ RUN pip install --upgrade pip && \
   --no-index \
   --find-links file:/// \
   proxy.py && \
-  rm *.whl && \
-  pip install \
+  rm *.whl
+
+RUN apk update && apk --no-cache add \
+  --virtual .builddeps \
+  gcc \
+  musl-dev \
+  libffi-dev \
+  openssl-dev \
+  python3-dev \
+  cargo \
+  rust
+RUN pip install \
   paramiko==3.4.0 \
-  cryptography==39.0.1 \
-  --prefer-binary
+  cryptography==39.0.1
+RUN apk del .builddeps
 
 # Use `--build-arg SKIP_OPENSSL=1` to disable openssl installation
 RUN if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk add openssl; fi
