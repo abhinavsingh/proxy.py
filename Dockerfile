@@ -1,4 +1,4 @@
-FROM python:3.11-alpine as base
+FROM ghcr.io/abhinavsingh/proxy.py:base as base
 
 LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
   com.abhinavsingh.description="⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • \
@@ -18,30 +18,25 @@ ARG PROXYPY_PKG_PATH
 COPY README.md /
 COPY $PROXYPY_PKG_PATH /
 
-RUN pip install --upgrade pip && \
-  pip install \
+# proxy.py itself needs no external dependencies
+RUN python -m venv /proxy/venv && \
+  /proxy/venv/bin/pip install \
+  -U pip && \
+  /proxy/venv/bin/pip install \
   --no-index \
   --find-links file:/// \
   proxy.py && \
   rm *.whl
 
-RUN apk update && apk --no-cache add \
-  --virtual .builddeps \
-  gcc \
-  musl-dev \
-  libffi-dev \
-  openssl-dev \
-  python3-dev \
-  cargo \
-  rust \
-  make
-RUN pip install \
-  paramiko==3.4.0 \
-  cryptography==39.0.1
-RUN apk del .builddeps
+FROM base as builder
+COPY --from=builder /proxy /proxy
 
+# Optionally, include openssl to allow
+# users to use TLS interception features using Docker
 # Use `--build-arg SKIP_OPENSSL=1` to disable openssl installation
 RUN if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk add openssl; fi
+
+ENV PATH="/proxy/.venv/bin:${PATH}"
 
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]
