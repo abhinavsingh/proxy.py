@@ -30,14 +30,14 @@ jobs:
         PLATFORMS="linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8,linux/ppc64le,linux/s390x";
         echo "::set-output name=platforms::$PLATFORMS"
 
-  ghcr-latest:
+  ghcr-base:
     runs-on: ubuntu-20.04
     permissions:
       packages: write
     if: success()
     needs:
     - pre-setup  # transitive, for accessing settings
-    name: 🐳 ghcr:latest
+    name: 🐳 ghcr:base
     steps:
     - name: Checkout
       uses: actions/checkout@v3
