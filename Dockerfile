@@ -1,6 +1,4 @@
-FROM ghcr.io/abhinavsingh/proxy.py:base as base
-
-FROM base as builder
+FROM ghcr.io/abhinavsingh/proxy.py:base
 
 LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
   org.opencontainers.image.title="proxy.py" \
@@ -16,6 +14,7 @@ LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
   org.opencontainers.image.vendor="Abhinav Singh"
 
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
 
 ARG SKIP_OPENSSL
 ARG PROXYPY_PKG_PATH
@@ -24,22 +23,22 @@ COPY README.md /
 COPY $PROXYPY_PKG_PATH /
 
 # proxy.py itself needs no external dependencies
-RUN python -m venv /proxy/venv && \
-  /proxy/venv/bin/pip install \
-  -U pip && \
-  /proxy/venv/bin/pip install \
-  --no-index \
-  --find-links file:/// \
-  proxy.py && \
-  rm *.whl
-
-FROM base
-COPY --from=builder /README.md /README.md
-COPY --from=builder /proxy /proxy
 # Optionally, include openssl to allow
 # users to use TLS interception features using Docker
 # Use `--build-arg SKIP_OPENSSL=1` to disable openssl installation
-RUN if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk add openssl; fi
+RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
+  -U pip && \
+  /proxy/venv/bin/pip install --no-compile --no-cache-dir \
+  --no-index \
+  --find-links file:/// \
+  proxy.py && \
+  rm *.whl && \
+  if [[ -z "$SKIP_OPENSSL" ]]; then apk update && apk --no-cache add openssl; fi && \
+  du -h | sort -hr | grep __pycache__ | awk '{ print $2 }' | xargs rm -rf && \
+  rm -rf /var/cache/apk/* && \
+  rm -rf /root/.cache/ && \
+  pip uninstall pip
+
 ENV PATH="/proxy/venv/bin:${PATH}"
 EXPOSE 8899/tcp
 ENTRYPOINT [ "proxy" ]

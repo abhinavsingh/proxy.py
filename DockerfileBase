@@ -14,6 +14,7 @@ LABEL com.abhinavsingh.name="abhinavsingh/proxy.py" \
     org.opencontainers.image.vendor="Abhinav Singh"
 
 ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
 
 # Install paramiko and cryptography to allow
 # users to use tunneling features using Docker
@@ -28,10 +29,13 @@ RUN apk update && apk --no-cache add \
     rust \
     make
 RUN python -m venv /proxy/venv && \
-    /proxy/venv/bin/pip install --no-cache-dir \
+    /proxy/venv/bin/pip install --no-compile --no-cache-dir \
     -U pip wheel && \
-    /proxy/venv/bin/pip install --no-cache-dir \
+    /proxy/venv/bin/pip install --no-compile --no-cache-dir \
     paramiko==3.4.0 \
     cryptography==39.0.1 \
-    --prefer-binary
-RUN apk del .builddeps
+    --prefer-binary && \
+    apk del .builddeps && \
+    du -h | sort -hr | grep __pycache__ | awk '{ print $2 }' | xargs rm -rf && \
+    rm -rf /var/cache/apk/* && \
+    rm -rf /root/.cache/
