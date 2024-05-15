@@ -37,7 +37,8 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   find . -type d -name '__pycache__' | xargs rm -rf && \
   rm -rf /var/cache/apk/* && \
   rm -rf /root/.cache/ && \
-  pip uninstall -y pip
+  /proxy/venv/bin/pip uninstall -y pip && \
+  pip uninstall -y setuptools pip
 
 FROM python:3.11-alpine
 COPY --from=builder /README.md /README.md

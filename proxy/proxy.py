@@ -402,18 +402,23 @@ def grout() -> None:  # noqa: C901
         print('\r' + ' ' * 60, end='', flush=True)
 
     def _env(scheme: bytes, host: bytes, port: int) -> Optional[Dict[str, Any]]:
-        response = client(
-            scheme=scheme,
-            host=host,
-            port=port,
-            path=b'/env/',
-            method=httpMethods.BIND,
-            body='v={0}&u={1}&h={2}'.format(
-                __version__,
-                os.environ.get('USER', getpass.getuser()),
-                socket.gethostname(),
-            ).encode(),
-        )
+        try:
+            response = client(
+                scheme=scheme,
+                host=host,
+                port=port,
+                path=b'/env/',
+                method=httpMethods.BIND,
+                body='v={0}&u={1}&h={2}'.format(
+                    __version__,
+                    os.environ.get('USER', getpass.getuser()),
+                    socket.gethostname(),
+                ).encode(),
+            )
+        except socket.gaierror:
+            _clear_line()
+            print('\r\033[91mUnable to resolve\033[0m')
+            return None
         if response:
             if (
                 response.code is not None
