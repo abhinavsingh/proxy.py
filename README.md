@@ -72,6 +72,7 @@
 - [TLS Interception](#tls-interception)
   - [TLS Interception With Docker](#tls-interception-with-docker)
 - [GROUT (NGROK Alternative)](#grout-ngrok-alternative)
+  - [Grout using Docker](#grout-using-docker)
   - [How Grout works](#how-grout-works)
   - [Self-hosted Grout](#self-hosted-grout)
 - [Proxy Over SSH Tunnel](#proxy-over-ssh-tunnel)
@@ -1347,6 +1348,22 @@ SUPPORT:
   Created by Jaxl™
   https://jaxl.io
 ```
+
+## Grout using Docker
+
+```console
+❯ docker run -it \
+  --entrypoint grout \
+  --rm -v ~/.proxy:/root/.proxy \
+  abhinavsingh/proxy.py:latest \
+  http://host.docker.internal:29876
+```
+
+Above:
+
+- We changed `--entrypoint` to `grout`
+- We replaced `localhost` with `host.docker.internal`, so that `grout` can route traffic to port `29876` running on the host machine
+- *(Optional)* Mount host machine `~/.proxy` folder, so that `grout` credentials can persist across container restarts
 
 ## How Grout works
 
