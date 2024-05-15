@@ -37,7 +37,7 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   find . -type d -name '__pycache__' | xargs rm -rf && \
   rm -rf /var/cache/apk/* && \
   rm -rf /root/.cache/ && \
-  pip uninstall pip
+  pip uninstall -y pip
 
 ENV PATH="/proxy/venv/bin:${PATH}"
 EXPOSE 8899/tcp
