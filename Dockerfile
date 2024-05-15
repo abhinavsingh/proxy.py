@@ -38,7 +38,7 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   rm -rf /var/cache/apk/* && \
   rm -rf /root/.cache/ && \
   /proxy/venv/bin/pip uninstall -y wheel setuptools pip && \
-  pip uninstall -y wheel setuptools pip
+  /usr/local/bin/pip uninstall -y wheel setuptools pip
 
 FROM python:3.11-alpine
 COPY --from=builder /README.md /README.md
