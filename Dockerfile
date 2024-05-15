@@ -33,7 +33,8 @@ RUN apk update && apk --no-cache add \
   openssl-dev \
   python3-dev \
   cargo \
-  rust
+  rust \
+  make
 RUN pip install \
   paramiko==3.4.0 \
   cryptography==39.0.1
