@@ -403,7 +403,7 @@ jobs:
       shell: bash
     - name: Download all the dists
       if: matrix.toxenv == 'metadata-validation'
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -522,7 +522,7 @@ jobs:
         ref: ${{ github.event.inputs.release-commitish }}
 
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -566,7 +566,7 @@ jobs:
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -763,7 +763,7 @@ jobs:
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -845,7 +845,7 @@ jobs:
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -925,7 +925,7 @@ jobs:
       with:
         ref: ${{ github.event.inputs.release-commitish }}
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -1008,7 +1008,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -1037,7 +1037,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
@@ -1096,7 +1096,7 @@ jobs:
 
     steps:
     - name: Download all the dists
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: python-package-distributions
         path: dist/
