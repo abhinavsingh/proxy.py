@@ -417,7 +417,11 @@ def grout() -> None:  # noqa: C901
             )
         except socket.gaierror:
             _clear_line()
-            print('\r\033[91mUnable to resolve\033[0m')
+            print(
+                '\r\033[91mUnable to resolve\033[0m',
+                end='',
+                flush=True,
+            )
             return None
         if response:
             if (
@@ -450,7 +454,11 @@ def grout() -> None:  # noqa: C901
                 )
         else:
             _clear_line()
-            print('\r\033[91mUnable to connect\033[0m')
+            print(
+                '\r\033[91mUnable to connect\033[0m',
+                end='',
+                flush=True,
+            )
         return None
 
     def _parse() -> Tuple[str, int]:
