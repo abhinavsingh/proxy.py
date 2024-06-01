@@ -20,7 +20,7 @@ from typing import Any, Optional
 from .queue import EventQueue
 from .dispatcher import EventDispatcher
 from ...common.flag import flags
-from ...common.constants import DEFAULT_ENABLE_EVENTS
+from ...common.constants import DEFAULT_ENABLE_EVENTS, DEFAULT_ENABLE_METRICS
 
 
 logger = logging.getLogger(__name__)
@@ -32,6 +32,13 @@ flags.add_argument(
     default=DEFAULT_ENABLE_EVENTS,
     help='Default: False.  Enables core to dispatch lifecycle events. '
     'Plugins can be used to subscribe for core events.',
+)
+flags.add_argument(
+    '--enable-metrics',
+    action='store_true',
+    default=DEFAULT_ENABLE_METRICS,
+    help='Default: False.  Enables core to dispatch metrics. '
+    'Plugins can be used to subscribe for metrics.',
 )
 
 

@@ -20,6 +20,7 @@ from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
+from ..metric_emisor import MetricEmisorMixin
 from ...common.types import RePattern
 from ...common.utils import bytes_
 from ...http.server.protocols import httpProtocolTypes
@@ -29,7 +30,11 @@ if TYPE_CHECKING:   # pragma: no cover
     from ...core.connection import TcpServerConnection, UpstreamConnectionPool
 
 
-class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
+class HttpWebServerBasePlugin(
+        DescriptorsHandlerMixin,
+        MetricEmisorMixin,
+        ABC,
+):
     """Web Server Plugin for routing of requests."""
 
     def __init__(

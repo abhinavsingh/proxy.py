@@ -11,12 +11,13 @@
 import socket
 import argparse
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Union, Optional
+from typing import TYPE_CHECKING, List, Union, Optional, Set
 
 from .parser import HttpParser
 from .connection import HttpClientConnection
 from ..core.event import EventQueue
 from .descriptors import DescriptorsHandlerMixin
+from .metric_emisor import MetricEmisorMixin
 from ..common.utils import tls_interception_enabled
 
 
@@ -26,6 +27,7 @@ if TYPE_CHECKING:   # pragma: no cover
 
 class HttpProtocolHandlerPlugin(
         DescriptorsHandlerMixin,
+        MetricEmisorMixin,
         ABC,
 ):
     """Base HttpProtocolHandler Plugin class.
