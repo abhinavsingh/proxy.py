@@ -11,14 +11,14 @@
 import socket
 import argparse
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Union, Optional, Set
+from typing import TYPE_CHECKING, Set, List, Union, Optional
 
 from .parser import HttpParser
 from .connection import HttpClientConnection
 from ..core.event import EventQueue
 from .descriptors import DescriptorsHandlerMixin
-from .metric_emisor import MetricEmisorMixin
 from ..common.utils import tls_interception_enabled
+from .metric_emisor import MetricEmisorMixin
 
 
 if TYPE_CHECKING:   # pragma: no cover

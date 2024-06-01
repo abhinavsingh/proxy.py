@@ -14,17 +14,17 @@
        onmessage
 """
 import logging
-from typing import List, Tuple, Dict, Any
+from typing import Any, Dict, List, Tuple
 
+from prometheus_client import Counter
+from prometheus_client.registry import REGISTRY
+from prometheus_client.exposition import generate_latest
+
+from proxy import metrics
+from proxy.core.event import EventSubscriber
 from proxy.http.parser import HttpParser
 from proxy.http.server import HttpWebServerBasePlugin, httpProtocolTypes
 from proxy.http.responses import okResponse
-from proxy.core.event import EventSubscriber
-from proxy import metrics
-
-from prometheus_client.exposition import generate_latest
-from prometheus_client.registry import REGISTRY
-from prometheus_client import Counter
 
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ class Prometheus(HttpWebServerBasePlugin):
         super().__init__(*args, **kwargs)
         self.subscriber = EventSubscriber(
             self.event_queue,
-            callback=self.process_metric_event
+            callback=self.process_metric_event,
         )
         self.subscriber.setup()
         self.metrics: Dict[str, Any] = {}
@@ -51,12 +51,12 @@ class Prometheus(HttpWebServerBasePlugin):
         ]
 
     def handle_request(self, request: HttpParser) -> None:
-        self.emit_metric_counter("prometheus_requests")
+        self.emit_metric_counter('prometheus_requests')
         if request.path == b'/metrics':
             self.client.queue(okResponse(generate_latest()))
 
     def process_metric_event(self, event: Dict[str, Any]) -> None:
-        payload = event["event_payload"]
+        payload = event['event_payload']
         if not isinstance(payload, metrics.Metric):
             return
         try:
@@ -70,6 +70,4 @@ class Prometheus(HttpWebServerBasePlugin):
                 counter.inc(payload.increment)
 
         except:
-            logger.exception("Problems")
-
-
+            logger.exception('Problems')

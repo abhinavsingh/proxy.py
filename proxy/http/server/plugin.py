@@ -20,9 +20,9 @@ from ..websocket import WebsocketFrame
 from ..connection import HttpClientConnection
 from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
-from ..metric_emisor import MetricEmisorMixin
 from ...common.types import RePattern
 from ...common.utils import bytes_
+from ..metric_emisor import MetricEmisorMixin
 from ...http.server.protocols import httpProtocolTypes
 
 

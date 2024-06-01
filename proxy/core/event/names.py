@@ -28,7 +28,7 @@ EventNames = NamedTuple(
         ('RESPONSE_HEADERS_COMPLETE', int),
         ('RESPONSE_CHUNK_RECEIVED', int),
         ('RESPONSE_COMPLETE', int),
-        ('METRIC', int)
+        ('METRIC', int),
     ],
 )
 eventNames = EventNames(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)

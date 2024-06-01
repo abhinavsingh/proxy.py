@@ -9,9 +9,11 @@
     :license: BSD, see LICENSE for more details.
 """
 import logging
-from typing import Union, Optional, Set
-from proxy.core.event import eventNames
+from typing import Set, Union, Optional
+
 from proxy import metrics
+from proxy.core.event import eventNames
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +25,7 @@ class MetricEmisorMixin:
         if self.flags.enable_events and self.flags.enable_metrics:
             assert self.event_queue
             return True
-        logging.info("Metrics disabled")
+        logging.info('Metrics disabled')
         return False
 
 
@@ -36,20 +38,22 @@ class MetricEmisorMixin:
                 publisher_id=self.__class__.__qualname__,
             )
 
-    def emit_metric_counter(self,
-            name: str,
-            increment: int | float=1,
-            description: Optional[str]=None,
-            tags: Optional[set[str]]=None
-            ) -> None:
+    def emit_metric_counter(
+        self,
+        name: str,
+        increment: int | float=1,
+        description: Optional[str]=None,
+        tags: Optional[set[str]]=None,
+    ) -> None:
         if self._can_emit_metrics():
             self.emit_metric(metrics.Counter(name, increment, description, tags))
 
-    def emit_metric_gauge(self,
-            name: str,
-            value: Union[int, float],
-            description: Optional[str]=None,
-            tags: Optional[Set[str]]=None
-            ) -> None:
+    def emit_metric_gauge(
+        self,
+        name: str,
+        value: Union[int, float],
+        description: Optional[str]=None,
+        tags: Optional[Set[str]]=None,
+    ) -> None:
         if self._can_emit_metrics():
             self.emit_metric(metrics.Gauge(name, value, description, tags))
