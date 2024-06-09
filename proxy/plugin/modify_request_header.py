@@ -25,7 +25,7 @@ class ModifyRequestHeaderPlugin(HttpProxyBasePlugin):
         how to modify headers for all scenarios (with or without interception).
         """
         request.add_header(
-            b"x-proxy-py-version",
+            b'x-proxy-py-version',
             bytes_(__version__),
         )
         return request
