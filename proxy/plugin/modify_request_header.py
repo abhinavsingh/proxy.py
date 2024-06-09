@@ -19,10 +19,19 @@ from ..common.version import __version__
 class ModifyRequestHeaderPlugin(HttpProxyBasePlugin):
     """Modify request header before sending to upstream server."""
 
+    # def before_upstream_connection(self, request: HttpParser) -> Optional[HttpParser]:
+    #     """NOTE: Use this for HTTP only request headers modification."""
+    #     request.add_header(
+    #         b"x-proxy-py-version",
+    #         bytes_(__version__),
+    #     )
+    #     return request
+
     def handle_client_request(self, request: HttpParser) -> Optional[HttpParser]:
-        """NOTE: Modification of client request under TLS interception WILL NOT WORK
-        through before_upstream_connection hook override.  This example plugin is demonstrate
-        how to modify headers for all scenarios (with or without interception).
+        """NOTE: This is for HTTPS request headers modification when under TLS interception.
+
+        For HTTPS requests, modification of request under TLS interception WILL NOT WORK
+        through before_upstream_connection.
         """
         request.add_header(
             b'x-proxy-py-version',
