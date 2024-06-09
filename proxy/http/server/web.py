@@ -217,7 +217,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.pipeline_request = None
 
     def on_response_chunk(self, chunk: List[memoryview]) -> List[memoryview]:
-        self._response_size += sum([len(c) for c in chunk])
+        self._response_size += sum(len(c) for c in chunk)
         return chunk
 
     def on_client_connection_close(self) -> None:

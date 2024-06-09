@@ -59,6 +59,7 @@
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [Filter By Client IP Plugin](#filterbyclientipplugin)
     - [Modify Chunk Response Plugin](#modifychunkresponseplugin)
+    - [Modify Request Header Plugin](#modifyrequestheaderplugin)
     - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
     - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
     - [Custom Network Interface](#customnetworkinterface)
@@ -931,6 +932,31 @@ plugin
 ```
 
 Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hard-coded chunks, parse and modify the original `JSON` chunks received from the upstream server.
+
+### ModifyRequestHeaderPlugin
+
+This plugin demonstrate how to modify outgoing HTTPS request headers under TLS interception mode.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ModifyRequestHeaderPlugin \
+    ... [TLS interception flags] ...
+```
+
+Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`:
+
+```console
+{
+  "args": {},
+  "headers": {
+    ... [redacted] ...,
+    "X-Proxy-Py-Version": "2.4.4rc6.dev15+gf533c711"
+  },
+  ... [redacted] ...
+}
+```
 
 ### CloudflareDnsResolverPlugin
 
