@@ -32,25 +32,27 @@ from .custom_dns_resolver import CustomDnsResolverPlugin
 from .filter_by_client_ip import FilterByClientIpPlugin
 from .filter_by_url_regex import FilterByURLRegexPlugin
 from .modify_chunk_response import ModifyChunkResponsePlugin
+from .modify_request_header import ModifyRequestHeaderPlugin
 from .redirect_to_custom_server import RedirectToCustomServerPlugin
 
 
 __all__ = [
-    'CacheResponsesPlugin',
-    'BaseCacheResponsesPlugin',
-    'FilterByUpstreamHostPlugin',
-    'ManInTheMiddlePlugin',
-    'ProposedRestApiPlugin',
-    'ModifyPostDataPlugin',
-    'RedirectToCustomServerPlugin',
-    'ShortLinkPlugin',
-    'WebServerPlugin',
-    'ReverseProxyPlugin',
-    'ProxyPoolPlugin',
-    'FilterByClientIpPlugin',
-    'ModifyChunkResponsePlugin',
-    'FilterByURLRegexPlugin',
-    'CustomDnsResolverPlugin',
-    'CloudflareDnsResolverPlugin',
-    'ProgramNamePlugin',
+    "CacheResponsesPlugin",
+    "BaseCacheResponsesPlugin",
+    "FilterByUpstreamHostPlugin",
+    "ManInTheMiddlePlugin",
+    "ProposedRestApiPlugin",
+    "ModifyPostDataPlugin",
+    "RedirectToCustomServerPlugin",
+    "ShortLinkPlugin",
+    "WebServerPlugin",
+    "ReverseProxyPlugin",
+    "ProxyPoolPlugin",
+    "FilterByClientIpPlugin",
+    "ModifyChunkResponsePlugin",
+    "FilterByURLRegexPlugin",
+    "CustomDnsResolverPlugin",
+    "CloudflareDnsResolverPlugin",
+    "ProgramNamePlugin",
+    "ModifyRequestHeaderPlugin",
 ]
