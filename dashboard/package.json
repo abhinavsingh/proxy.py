@@ -42,7 +42,7 @@
     "jasmine-ts": "^0.4.0",
     "jquery": "^3.6.1",
     "js-cookie": "^3.0.1",
-    "jsdom": "^15.2.1",
+    "jsdom": "^16.7.0",
     "ncp": "^2.0.0",
     "rollup": "^1.32.1",
     "rollup-plugin-copy": "^3.4.0",
@@ -50,6 +50,6 @@
     "rollup-plugin-typescript": "^1.0.1",
     "ts-node": "^10.9.1",
     "typescript": "^4.8.4",
-    "ws": "^8.9.0"
+    "ws": "^8.17.1"
   }
 }
