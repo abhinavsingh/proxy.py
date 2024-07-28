@@ -25,6 +25,17 @@ class TcpServerConnection(TcpConnection):
         self._conn: Optional[TcpOrTlsSocket] = None
         self.addr: HostPort = (host, port)
         self.closed = True
+        self._proxy = False
+
+    def is_secure(self) -> bool:
+        return isinstance(self._conn, ssl.SSLSocket)
+
+    def mark_as_proxy(self) -> None:
+        self._proxy = True
+
+    @property
+    def is_proxy(self) -> bool:
+        return self._proxy
 
     @property
     def connection(self) -> TcpOrTlsSocket:
