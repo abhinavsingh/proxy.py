@@ -84,6 +84,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         self.choice = Url.from_bytes(
                             random.choice(route[1]),
                         )
+                        needs_upstream = True
                         break
                 # Dynamic routes
                 elif isinstance(route, str):
