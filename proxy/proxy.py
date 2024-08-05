@@ -466,10 +466,11 @@ def grout() -> None:  # noqa: C901
         parser = argparse.ArgumentParser(add_help=False)
         parser.add_argument('route', nargs='?', default=None)
         parser.add_argument('name', nargs='?', default=None)
+        parser.add_argument('--wildcard', action='store_true', help='Enable wildcard')
         args, _remaining_args = parser.parse_known_args()
         grout_tld = default_grout_tld
         if args.name is not None and '.' in args.name:
-            grout_tld = args.name.split('.', maxsplit=1)[1]
+            grout_tld = args.name if args.wildcard else args.name.split('.', maxsplit=1)[1]
         grout_tld_parts = grout_tld.split(':')
         tld_host = grout_tld_parts[0]
         tld_port = 443
