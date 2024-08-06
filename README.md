@@ -73,6 +73,10 @@
 - [TLS Interception](#tls-interception)
   - [TLS Interception With Docker](#tls-interception-with-docker)
 - [GROUT (NGROK Alternative)](#grout-ngrok-alternative)
+  - [Grout Usage](#grout-usage)
+  - [Grout Authentication](#grout-authentication)
+  - [Grout Paths](#grout-paths)
+  - [Grout Wildcard Domains](#grout-wildcard-domains)
   - [Grout using Docker](#grout-using-docker)
   - [How Grout works](#how-grout-works)
   - [Self-hosted Grout](#self-hosted-grout)
@@ -1323,7 +1327,10 @@ with TLS Interception:
 
 # GROUT (NGROK Alternative)
 
-`grout` is a drop-in alternative to `ngrok` that comes packaged within `proxy.py`
+1. `grout` is a drop-in alternative for `ngrok` and `frp`
+2. `grout` comes packaged within `proxy.py`
+
+## Grout Usage
 
 ```console
 ❯ grout
@@ -1375,12 +1382,58 @@ SUPPORT:
   https://jaxl.io
 ```
 
+## Grout Authentication
+
+Grout supports authentication to protect your files, folders and services from unauthorized
+access.  Use `--basic-auth` flag to enforce authentication.  Example:
+
+```console
+grout /path/to/folder --basic-auth user:pass
+grout https://localhost:8080 --basic-auth u:p
+```
+
+## Grout Paths
+
+By default, Grout allows access to all paths on the services.  Use `--path` flag to restrict
+access to only certain paths on your web service.  Example:
+
+```console
+grout https://localhost:8080 --path /worker/
+grout https://localhost:8080 --path /webhook/ --path /callback/
+```
+
+## Grout Wildcard Domains
+
+By default, Grout client serves incoming traffic on a dedicated subdomain.
+However, some services (e.g. Kubernetes) may want to serve traffic on adhoc subdomains.
+Starting a dedicated Grout client for every adhoc subdomain may not be a practical solution.
+
+For such scenarios, Grout supports wildcard domains.  Here is how to configure your own
+wildcard domain for use with Grout clients.
+
+1. Choose a domain e.g. `custom.example.com`
+2. Your service wants to serve traffic for `custom.example.com` and `*.custom.example.com`
+3. If you plan on using `https://`, you need to setup a load balancer:
+   - Setup a HTTPS load balancer (LB)
+   - Configure LB with certificate generated for `custom.example.com` and `*.custom.example.com`
+   - Point traffic to Grout service public IP addresses
+4. Contact Grout team at support@jaxl.com to whitelist `custom.example.com`.  Grout team will make
+   sure you really own the domain and you have configured a valid SSL certificate as described above
+
+Start Grout with `--wildcard` flag.  Example:
+
+```console
+grout https://localhost:8080 custom.example.com --wildcard
+2024-08-05 18:24:59,294 - grout - Logged in as someone@gmail.com
+2024-08-05 18:25:03,159 - setup - Grouting https://*.custom.domain.com
+```
+
 ## Grout using Docker
 
 ```console
-❯ docker run -it \
+❯ docker run --rm -it \
   --entrypoint grout \
-  --rm -v ~/.proxy:/root/.proxy \
+  -v ~/.proxy:/root/.proxy \
   abhinavsingh/proxy.py:latest \
   http://host.docker.internal:29876
 ```
