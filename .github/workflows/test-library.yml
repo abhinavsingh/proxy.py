@@ -545,11 +545,11 @@ jobs:
         --parallel-live
         --skip-missing-interpreters false
         --skip-pkg-install
-    # - name: Upload coverage to Codecov
-    #   uses: codecov/codecov-action@v3
-    #   with:
-    #     flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
-    #     verbose: true
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
+        verbose: true
 
   test-container:
     runs-on: ubuntu-20.04
