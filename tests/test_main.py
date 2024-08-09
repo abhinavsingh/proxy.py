@@ -33,9 +33,9 @@ from proxy.common.constants import (  # noqa: WPS450
     DEFAULT_ENABLE_SSH_TUNNEL, DEFAULT_ENABLE_WEB_SERVER,
     DEFAULT_DISABLE_HTTP_PROXY, PLUGIN_WEBSOCKET_TRANSPORT,
     DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_CLIENT_RECVBUF_SIZE,
-    DEFAULT_SERVER_RECVBUF_SIZE, DEFAULT_CACHE_DIRECTORY_PATH,
-    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
-    _env_threadless_compliant,
+    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_SERVER_RECVBUF_SIZE,
+    DEFAULT_CACHE_DIRECTORY_PATH, DEFAULT_ENABLE_REVERSE_PROXY,
+    DEFAULT_ENABLE_STATIC_SERVER, _env_threadless_compliant,
 )
 
 
@@ -83,6 +83,7 @@ class TestMain(unittest.TestCase):
         mock_args.enable_ssh_tunnel = DEFAULT_ENABLE_SSH_TUNNEL
         mock_args.enable_reverse_proxy = DEFAULT_ENABLE_REVERSE_PROXY
         mock_args.unix_socket_path = None
+        mock_args.data_dir = DEFAULT_DATA_DIRECTORY_PATH
         mock_args.cache_dir = DEFAULT_CACHE_DIRECTORY_PATH
 
     @mock.patch('os.remove')
@@ -329,26 +330,27 @@ class TestMain(unittest.TestCase):
     @mock.patch('proxy.proxy.AcceptorPool')
     @mock.patch('proxy.proxy.ThreadlessPool')
     @mock.patch('proxy.proxy.ListenerPool')
-    @mock.patch('proxy.proxy.SshHttpProtocolHandler')
-    @mock.patch('proxy.proxy.SshTunnelListener')
     def test_enable_ssh_tunnel(
-            self,
-            mock_ssh_tunnel_listener: mock.Mock,
-            mock_ssh_http_proto_handler: mock.Mock,
-            mock_listener_pool: mock.Mock,
-            mock_executor_pool: mock.Mock,
-            mock_acceptor_pool: mock.Mock,
-            mock_event_manager: mock.Mock,
-            mock_parse_args: mock.Mock,
-            mock_load_plugins: mock.Mock,
-            mock_sleep: mock.Mock,
+        self,
+        mock_listener_pool: mock.Mock,
+        mock_executor_pool: mock.Mock,
+        mock_acceptor_pool: mock.Mock,
+        mock_event_manager: mock.Mock,
+        mock_parse_args: mock.Mock,
+        mock_load_plugins: mock.Mock,
+        mock_sleep: mock.Mock,
     ) -> None:
         mock_sleep.side_effect = KeyboardInterrupt()
         mock_args = mock_parse_args.return_value
         self.mock_default_args(mock_args)
         mock_args.enable_ssh_tunnel = True
         mock_args.local_executor = 0
-        main()
+        mock_ssh_tunnel_listener = mock.MagicMock()
+        mock_ssh_http_proto_handler = mock.MagicMock()
+        main(
+            ssh_listener_klass=mock_ssh_tunnel_listener,
+            ssh_handler_klass=mock_ssh_http_proto_handler,
+        )
         mock_load_plugins.assert_called()
         self.assertEqual(
             mock_load_plugins.call_args_list[0][0][0], [
@@ -366,10 +368,7 @@ class TestMain(unittest.TestCase):
         mock_ssh_http_proto_handler.assert_called_once()
         mock_ssh_tunnel_listener.assert_called_once()
         mock_ssh_tunnel_listener.return_value.setup.assert_called_once()
-        mock_ssh_tunnel_listener.return_value.start_port_forward.assert_called_once()
         mock_ssh_tunnel_listener.return_value.shutdown.assert_called_once()
-        # shutdown will internally call stop port forward
-        mock_ssh_tunnel_listener.return_value.stop_port_forward.assert_not_called()
 
 
 class TestProxyContextManager(unittest.TestCase):

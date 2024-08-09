@@ -22,10 +22,11 @@ from ...core.event import EventQueue
 from ..descriptors import DescriptorsHandlerMixin
 from ...common.types import RePattern
 from ...common.utils import bytes_
+from ...http.server.protocols import httpProtocolTypes
 
 
 if TYPE_CHECKING:   # pragma: no cover
-    from ...core.connection import UpstreamConnectionPool
+    from ...core.connection import TcpServerConnection, UpstreamConnectionPool
 
 
 class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
@@ -46,7 +47,11 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         self.upstream_conn_pool = upstream_conn_pool
 
     @staticmethod
-    def serve_static_file(path: str, min_compression_length: int) -> memoryview:
+    def serve_static_file(
+        path: str,
+        min_compression_length: int,
+        compress: bool = True,
+    ) -> memoryview:
         try:
             with open(path, 'rb') as f:
                 content = f.read()
@@ -60,11 +65,12 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
             return okResponse(
                 content=content,
                 headers=headers,
+                compress=compress,
                 min_compression_length=min_compression_length,
                 # TODO: Should we really close or take advantage of keep-alive?
                 conn_close=True,
             )
-        except FileNotFoundError:
+        except OSError:
             return NOT_FOUND_RESPONSE_PKT
 
     def name(self) -> str:
@@ -87,6 +93,17 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
     def on_client_connection_close(self) -> None:
         """Client has closed the connection, do any clean up task now."""
         pass
+
+    def do_upgrade(self, request: HttpParser) -> bool:
+        return True
+
+    def on_client_data(
+        self,
+        request: HttpParser,
+        raw: memoryview,
+    ) -> Optional[memoryview]:
+        """Return None to avoid default webserver parsing of client data."""
+        return raw
 
     # No longer abstract since v2.4.0
     #
@@ -125,7 +142,7 @@ class HttpWebServerBasePlugin(DescriptorsHandlerMixin, ABC):
         return context
 
 
-class ReverseProxyBasePlugin(ABC):
+class ReverseProxyBasePlugin(DescriptorsHandlerMixin, ABC):
     """ReverseProxy base plugin class."""
 
     def __init__(
@@ -161,15 +178,26 @@ class ReverseProxyBasePlugin(ABC):
         must return the url to serve."""
         raise NotImplementedError()     # pragma: no cover
 
+    def protocols(self) -> List[int]:
+        return [
+            httpProtocolTypes.HTTP,
+            httpProtocolTypes.HTTPS,
+            httpProtocolTypes.WEBSOCKET,
+        ]
+
     def before_routing(self, request: HttpParser) -> Optional[HttpParser]:
         """Plugins can modify request, return response, close connection.
 
         If None is returned, request will be dropped and closed."""
         return request  # pragma: no cover
 
-    def handle_route(self, request: HttpParser, pattern: RePattern) -> Url:
+    def handle_route(
+        self,
+        request: HttpParser,
+        pattern: RePattern,
+    ) -> Union[memoryview, Url, 'TcpServerConnection']:
         """Implement this method if you have configured dynamic routes."""
-        pass
+        raise NotImplementedError()
 
     def regexes(self) -> List[str]:
         """Helper method to return list of route regular expressions."""
@@ -182,3 +210,13 @@ class ReverseProxyBasePlugin(ABC):
             else:
                 raise ValueError('Invalid route type')
         return routes
+
+    def on_access_log(self, context: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Use this method to override default access log format (see
+        DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT) or to add/update/modify passed context
+        for usage by default access logger.
+
+        Return updated log context to use for default logging format, OR
+        Return None if plugin has logged the request.
+        """
+        return context

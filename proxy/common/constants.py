@@ -47,12 +47,25 @@ COMMA = b','
 DOT = b'.'
 SLASH = b'/'
 AT = b'@'
+AND = b'&'
+EQUAL = b'='
+TCP_PROTO = b"tcp"
+UDP_PROTO = b"udp"
 HTTP_PROTO = b'http'
 HTTPS_PROTO = HTTP_PROTO + b's'
+WEBSOCKET_PROTO = b"ws"
+WEBSOCKETS_PROTO = WEBSOCKET_PROTO + b"s"
+HTTP_PROTOS = [HTTP_PROTO, HTTPS_PROTO, WEBSOCKET_PROTO, WEBSOCKETS_PROTO]
+SSL_PROTOS = [HTTPS_PROTO, WEBSOCKETS_PROTO]
 HTTP_1_0 = HTTP_PROTO.upper() + SLASH + b'1.0'
 HTTP_1_1 = HTTP_PROTO.upper() + SLASH + b'1.1'
-HTTP_URL_PREFIX = HTTP_PROTO + COLON + SLASH + SLASH
-HTTPS_URL_PREFIX = HTTPS_PROTO + COLON + SLASH + SLASH
+COLON_SLASH_SLASH = COLON + SLASH + SLASH
+TCP_URL_PREFIX = TCP_PROTO + COLON_SLASH_SLASH
+UDP_URL_PREFIX = UDP_PROTO + COLON_SLASH_SLASH
+HTTP_URL_PREFIX = HTTP_PROTO + COLON_SLASH_SLASH
+HTTPS_URL_PREFIX = HTTPS_PROTO + COLON_SLASH_SLASH
+WEBSOCKET_URL_PREFIX = WEBSOCKET_PROTO + COLON_SLASH_SLASH
+WEBSOCKETS_URL_PREFIX = WEBSOCKETS_PROTO + COLON_SLASH_SLASH
 
 LOCAL_INTERFACE_HOSTNAMES = (
     b'localhost',
@@ -112,8 +125,11 @@ DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
 DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
     '{request_method} {server_host}:{server_port} - ' + \
     '{response_bytes} bytes - {connection_time_ms}ms'
-DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = '{client_ip}:{client_port} - ' + \
-    '{request_method} {request_path} -> {upstream_proxy_pass} - {connection_time_ms}ms'
+DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT = (
+    "{client_ip}:{client_port} - "
+    + "{request_method} {request_path} - {request_ua} -> "
+    + "{upstream_proxy_pass} - {connection_time_ms}ms"
+)
 DEFAULT_NUM_ACCEPTORS = 0
 DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
@@ -133,6 +149,7 @@ DEFAULT_VERSION = False
 DEFAULT_HTTP_PORT = 80
 DEFAULT_HTTPS_PORT = 443
 DEFAULT_WORK_KLASS = 'proxy.http.HttpProtocolHandler'
+DEFAULT_SSH_LISTENER_KLASS = "proxy.core.ssh.listener.SshTunnelListener"
 DEFAULT_ENABLE_PROXY_PROTOCOL = False
 # 25 milliseconds to keep the loops hot
 # Will consume ~0.3-0.6% CPU when idle.

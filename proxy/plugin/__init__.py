@@ -32,6 +32,7 @@ from .custom_dns_resolver import CustomDnsResolverPlugin
 from .filter_by_client_ip import FilterByClientIpPlugin
 from .filter_by_url_regex import FilterByURLRegexPlugin
 from .modify_chunk_response import ModifyChunkResponsePlugin
+from .modify_request_header import ModifyRequestHeaderPlugin
 from .redirect_to_custom_server import RedirectToCustomServerPlugin
 
 
@@ -53,4 +54,5 @@ __all__ = [
     'CustomDnsResolverPlugin',
     'CloudflareDnsResolverPlugin',
     'ProgramNamePlugin',
+    'ModifyRequestHeaderPlugin',
 ]

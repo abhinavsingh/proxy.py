@@ -11,6 +11,7 @@
 import queue
 import asyncio
 import contextlib
+from abc import abstractmethod
 from typing import Any, Optional
 
 from .threadless import Threadless
@@ -40,3 +41,7 @@ class BaseLocalExecutor(Threadless[NonBlockingQueue]):
                 return True
             self.work(work)
         return False
+
+    @abstractmethod
+    def work(self, *args: Any) -> None:
+        raise NotImplementedError()

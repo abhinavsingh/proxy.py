@@ -10,6 +10,7 @@
 """
 import gzip
 import json
+import base64
 import selectors
 from typing import Any, cast
 from urllib import parse as urlparse
@@ -29,7 +30,8 @@ from proxy.common.flag import FlagParser
 from proxy.http.parser import HttpParser, httpParserTypes
 from proxy.common.utils import bytes_, build_http_request, build_http_response
 from proxy.http.responses import (
-    NOT_FOUND_RESPONSE_PKT, PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
+    NOT_FOUND_RESPONSE_PKT, PROXY_AUTH_FAILED_RESPONSE_PKT,
+    PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT,
 )
 from proxy.common.constants import DEFAULT_HTTP_PORT, PROXY_AGENT_HEADER_VALUE
 from .utils import get_plugin_by_test_name
@@ -555,3 +557,73 @@ class TestHttpProxyPluginExamples(Assertions):
             ),
         )
         self.assertFalse(self.protocol_handler.work.has_buffer())
+
+    @pytest.mark.asyncio  # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_auth_plugin'),
+        ),
+        indirect=True,
+    )  # type: ignore[misc]
+    async def test_auth_plugin(self) -> None:
+        self.flags.auth_code = base64.b64encode(bytes_("admin:123456"))
+
+        request = b'\r\n'.join([
+            b'GET http://www.facebook.com/tr/ HTTP/1.1',
+            b'Host: www.facebook.com',
+            b'User-Agent: proxy.py v2.4.4rc5.dev3+g95b646a.d20230811',
+            b'',
+            b'',
+        ])
+
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+        await self.protocol_handler._run_once()
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
+        )
+
+    @pytest.mark.asyncio  # type: ignore[misc]
+    @pytest.mark.parametrize(
+        "_setUp",
+        (
+            ('test_auth_plugin'),
+        ),
+        indirect=True,
+    )  # type: ignore[misc]
+    async def test_auth_plugin_bypass(self) -> None:
+        self.flags.auth_code = base64.b64encode(bytes_("admin:123456"))
+
+        # miss requests header when https and HTTP 1.0
+        request = b'CONNECT www.facebook.com:443 HTTP/1.0\r\n\r\n'
+
+        self._conn.recv.return_value = request
+        self.mock_selector.return_value.select.side_effect = [
+            [(
+                selectors.SelectorKey(
+                    fileobj=self._conn.fileno(),
+                    fd=self._conn.fileno(),
+                    events=selectors.EVENT_READ,
+                    data=None,
+                ),
+                selectors.EVENT_READ,
+            )],
+        ]
+        await self.protocol_handler._run_once()
+
+        self.assertEqual(
+            self.protocol_handler.work.buffer[0],
+            PROXY_AUTH_FAILED_RESPONSE_PKT,
+        )

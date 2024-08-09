@@ -381,7 +381,13 @@ class FlagParser:
             ),
         )
 
-        args.proxy_py_data_dir = DEFAULT_DATA_DIRECTORY_PATH
+        args.proxy_py_data_dir = cast(
+            str,
+            opts.get(
+                'data_dir',
+                args.data_dir or DEFAULT_DATA_DIRECTORY_PATH,
+            ),
+        )
         os.makedirs(args.proxy_py_data_dir, exist_ok=True)
 
         ca_cert_dir = opts.get('ca_cert_dir', args.ca_cert_dir)

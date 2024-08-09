@@ -186,6 +186,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         """Will never be called since we didn't establish an upstream connection."""
         if not self.upstream:
             return chunk
+        # pylint: disable=broad-exception-raised
         raise Exception("This should have never been called")
 
     def on_upstream_connection_close(self) -> None:

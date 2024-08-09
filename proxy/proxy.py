@@ -10,31 +10,44 @@
 """
 import os
 import sys
+import gzip
+import json
 import time
 import pprint
 import signal
+import socket
+import getpass
 import logging
+import argparse
 import threading
-from typing import TYPE_CHECKING, Any, List, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Optional, cast
 
 from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
 from .core.event import EventManager
+from .http.codes import httpStatusCodes
 from .common.flag import FlagParser, flags
+from .http.client import client
 from .common.utils import bytes_
 from .core.work.fd import RemoteFdExecutor
+from .http.methods import httpMethods
 from .core.acceptor import AcceptorPool
 from .core.listener import ListenerPool
+from .core.ssh.base import BaseSshTunnelListener
+from .common.plugins import Plugins
+from .common.version import __version__
 from .common.constants import (
-    IS_WINDOWS, DEFAULT_PLUGINS, DEFAULT_VERSION, DEFAULT_LOG_FILE,
-    DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
+    IS_WINDOWS, HTTPS_PROTO, DEFAULT_PLUGINS, DEFAULT_VERSION,
+    DEFAULT_LOG_FILE, DEFAULT_PID_FILE, DEFAULT_LOG_LEVEL, DEFAULT_BASIC_AUTH,
     DEFAULT_LOG_FORMAT, DEFAULT_WORK_KLASS, DEFAULT_OPEN_FILE_LIMIT,
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
+    DEFAULT_SSH_LISTENER_KLASS,
 )
 
 
 if TYPE_CHECKING:   # pragma: no cover
     from .core.listener import TcpSocketListener
+    from .core.ssh.base import BaseSshTunnelHandler
 
 
 logger = logging.getLogger(__name__)
@@ -145,6 +158,22 @@ flags.add_argument(
     'By default, assumption is that openssl is in your PATH.',
 )
 
+flags.add_argument(
+    '--data-dir',
+    type=str,
+    default=None,
+    help='Default: ~/.proxypy. Path to proxypy data directory.',
+)
+
+flags.add_argument(
+    '--ssh-listener-klass',
+    type=str,
+    default=DEFAULT_SSH_LISTENER_KLASS,
+    help='Default: '
+    + DEFAULT_SSH_LISTENER_KLASS
+    + '.  An implementation of BaseSshTunnelListener',
+)
+
 
 class Proxy:
     """Proxy is a context manager to control proxy.py library core.
@@ -168,13 +197,13 @@ class Proxy:
     """
 
     def __init__(self, input_args: Optional[List[str]] = None, **opts: Any) -> None:
+        self.opts = opts
         self.flags = FlagParser.initialize(input_args, **opts)
         self.listeners: Optional[ListenerPool] = None
         self.executors: Optional[ThreadlessPool] = None
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
-        self.ssh_http_protocol_handler: Optional[SshHttpProtocolHandler] = None
-        self.ssh_tunnel_listener: Optional[SshTunnelListener] = None
+        self.ssh_tunnel_listener: Optional[BaseSshTunnelListener] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -254,20 +283,30 @@ class Proxy:
         self.acceptors.setup()
         # Start SSH tunnel acceptor if enabled
         if self.flags.enable_ssh_tunnel:
-            self.ssh_http_protocol_handler = SshHttpProtocolHandler(
+            self.ssh_tunnel_listener = self._setup_tunnel(
                 flags=self.flags,
-            )
-            self.ssh_tunnel_listener = SshTunnelListener(
-                flags=self.flags,
-                on_connection_callback=self.ssh_http_protocol_handler.on_connection,
-            )
-            self.ssh_tunnel_listener.setup()
-            self.ssh_tunnel_listener.start_port_forward(
-                ('', self.flags.tunnel_remote_port),
+                **self.opts,
             )
         # TODO: May be close listener fd as we don't need it now
         if threading.current_thread() == threading.main_thread():
             self._register_signals()
+
+    @staticmethod
+    def _setup_tunnel(
+        flags: argparse.Namespace,
+        ssh_handler_klass: Optional[Type['BaseSshTunnelHandler']] = None,
+        ssh_listener_klass: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> BaseSshTunnelListener:
+        listener_klass = ssh_listener_klass or SshTunnelListener
+        handler_klass = ssh_handler_klass or SshHttpProtocolHandler
+        tunnel = cast(Type[BaseSshTunnelListener], listener_klass)(
+            flags=flags,
+            handler=handler_klass(flags=flags),
+            **kwargs,
+        )
+        tunnel.setup()
+        return tunnel
 
     def shutdown(self) -> None:
         if self.flags.enable_ssh_tunnel:
@@ -332,14 +371,14 @@ class Proxy:
 
     @staticmethod
     def _handle_exit_signal(signum: int, _frame: Any) -> None:
-        logger.info('Received signal %d' % signum)
+        logger.debug('Received signal %d' % signum)
         sys.exit(0)
 
     def _handle_siginfo(self, _signum: int, _frame: Any) -> None:
         pprint.pprint(self.flags.__dict__)  # pragma: no cover
 
 
-def sleep_loop() -> None:
+def sleep_loop(p: Optional[Proxy] = None) -> None:
     while True:
         try:
             time.sleep(1)
@@ -348,9 +387,118 @@ def sleep_loop() -> None:
 
 
 def main(**opts: Any) -> None:
-    with Proxy(sys.argv[1:], **opts):
-        sleep_loop()
+    with Proxy(sys.argv[1:], **opts) as p:
+        sleep_loop(p)
 
 
 def entry_point() -> None:
     main()
+
+
+def grout() -> None:  # noqa: C901
+    default_grout_tld = os.environ.get('JAXL_DEFAULT_GROUT_TLD', 'jaxl.io')
+
+    def _clear_line() -> None:
+        print('\r' + ' ' * 60, end='', flush=True)
+
+    def _env(scheme: bytes, host: bytes, port: int) -> Optional[Dict[str, Any]]:
+        try:
+            response = client(
+                scheme=scheme,
+                host=host,
+                port=port,
+                path=b'/env/',
+                method=httpMethods.BIND,
+                body='v={0}&u={1}&h={2}'.format(
+                    __version__,
+                    os.environ.get('USER', getpass.getuser()),
+                    socket.gethostname(),
+                ).encode(),
+            )
+        except socket.gaierror:
+            _clear_line()
+            print(
+                '\r\033[91mUnable to resolve\033[0m',
+                end='',
+                flush=True,
+            )
+            return None
+        if response:
+            if (
+                response.code is not None
+                and int(response.code) == httpStatusCodes.OK
+                and response.body is not None
+            ):
+                return cast(
+                    Dict[str, Any],
+                    json.loads(
+                        (
+                            gzip.decompress(response.body).decode()
+                            if response.has_header(b'content-encoding')
+                            and response.header(b'content-encoding') == b'gzip'
+                            else response.body.decode()
+                        ),
+                    ),
+                )
+            if response.code is None:
+                _clear_line()
+                print('\r\033[91mUnable to fetch\033[0m', end='', flush=True)
+            else:
+                _clear_line()
+                print(
+                    '\r\033[91mError code {0}\033[0m'.format(
+                        response.code.decode(),
+                    ),
+                    end='',
+                    flush=True,
+                )
+        else:
+            _clear_line()
+            print(
+                '\r\033[91mUnable to connect\033[0m',
+                end='',
+                flush=True,
+            )
+        return None
+
+    def _parse() -> Tuple[str, int]:
+        """Here we deduce registry host/port based upon input parameters."""
+        parser = argparse.ArgumentParser(add_help=False)
+        parser.add_argument('route', nargs='?', default=None)
+        parser.add_argument('name', nargs='?', default=None)
+        parser.add_argument('--wildcard', action='store_true', help='Enable wildcard')
+        args, _remaining_args = parser.parse_known_args()
+        grout_tld = default_grout_tld
+        if args.name is not None and '.' in args.name:
+            grout_tld = args.name if args.wildcard else args.name.split('.', maxsplit=1)[1]
+        grout_tld_parts = grout_tld.split(':')
+        tld_host = grout_tld_parts[0]
+        tld_port = 443
+        if len(grout_tld_parts) > 1:
+            tld_port = int(grout_tld_parts[1])
+        return tld_host, tld_port
+
+    tld_host, tld_port = _parse()
+    env = None
+    attempts = 0
+    try:
+        while True:
+            env = _env(scheme=HTTPS_PROTO, host=tld_host.encode(), port=int(tld_port))
+            attempts += 1
+            if env is not None:
+                print('\rStarting ...' + ' ' * 30 + '\r', end='', flush=True)
+                break
+            time.sleep(1)
+            _clear_line()
+            print(
+                '\rWaiting for connection {0}'.format('.' * (attempts % 4)),
+                end='',
+                flush=True,
+            )
+            time.sleep(1)
+    except KeyboardInterrupt:
+        sys.exit(1)
+
+    assert env is not None
+    print('\r' + ' ' * 70 + '\r', end='', flush=True)
+    Plugins.from_bytes(env['m'].encode(), name='client').grout(env=env['e'])  # type: ignore[attr-defined]

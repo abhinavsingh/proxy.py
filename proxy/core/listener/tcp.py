@@ -92,8 +92,7 @@ class TcpSocketListener(BaseListener):
         sock.listen(self.flags.backlog)
         sock.setblocking(False)
         self._port = sock.getsockname()[1]
-        logger.info(
-            'Listening on %s:%s' %
-            (self.hostname, self._port),
+        logger.debug(
+            'Listening on %s:%s' % (self.hostname, self._port),
         )
         return sock

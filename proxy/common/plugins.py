@@ -8,11 +8,14 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import io
 import os
 import inspect
 import logging
 import importlib
 import itertools
+# pylint: disable=ungrouped-imports
+import importlib.util
 from types import ModuleType
 from typing import Any, Dict, List, Tuple, Union, Optional
 
@@ -127,3 +130,19 @@ class Plugins:
         if klass is None or module_name is None:
             raise ValueError('%s is not resolvable as a plugin class' % text_(plugin))
         return (klass, module_name)
+
+    @staticmethod
+    def from_bytes(pyc: bytes, name: str) -> ModuleType:
+        code_stream = io.BytesIO(pyc)
+        spec = importlib.util.spec_from_loader(
+            name,
+            loader=None,
+            origin='dynamic',
+            is_package=True,
+        )
+        assert spec is not None
+        mod = importlib.util.module_from_spec(spec)
+        code_stream.seek(0)
+        # pylint: disable=exec-used
+        exec(code_stream.read(), mod.__dict__)  # noqa: S102
+        return mod

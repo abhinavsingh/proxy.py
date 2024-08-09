@@ -9,6 +9,8 @@
     :license: BSD, see LICENSE for more details.
 """
 import time
+from abc import abstractmethod
+from typing import Any
 
 from proxy import Proxy
 from proxy.core.work import Work
@@ -51,6 +53,11 @@ class WebScraper(Work[TcpClientConnection]):
 
         Return True to shutdown work."""
         return False
+
+    @staticmethod
+    @abstractmethod
+    def create(*args: Any) -> TcpClientConnection:
+        raise NotImplementedError()
 
 
 if __name__ == '__main__':

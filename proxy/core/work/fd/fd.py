@@ -9,7 +9,9 @@
     :license: BSD, see LICENSE for more details.
 """
 import socket
+import asyncio
 import logging
+from abc import abstractmethod
 from typing import Any, TypeVar, Optional
 
 from ...event import eventNames
@@ -47,3 +49,16 @@ class ThreadlessFdExecutor(Threadless[T]):
                 exc_info=e,
             )
             self._cleanup(fileno)
+
+    @property
+    @abstractmethod
+    def loop(self) -> Optional[asyncio.AbstractEventLoop]:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def receive_from_work_queue(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def work_queue_fileno(self) -> Optional[int]:
+        raise NotImplementedError()

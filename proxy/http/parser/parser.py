@@ -217,6 +217,13 @@ class HttpParser:
             self.has_header(b'Upgrade')
 
     @property
+    def is_websocket_upgrade(self) -> bool:
+        return (
+            self.is_connection_upgrade
+            and self.header(b'upgrade').lower() == b'websocket'
+        )
+
+    @property
     def is_https_tunnel(self) -> bool:
         """Returns true for HTTPS CONNECT tunnel request."""
         return self._is_https_tunnel

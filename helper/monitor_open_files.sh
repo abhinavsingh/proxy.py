@@ -20,15 +20,20 @@ if [[ -z "$PROXY_PY_PID" ]]; then
   exit 1
 fi
 
-OPEN_FILES_BY_MAIN=$(lsof -p "$PROXY_PY_PID" | wc -l)
-echo "[$PROXY_PY_PID] Main process: $OPEN_FILES_BY_MAIN"
+while true;
+do
+  OPEN_FILES_BY_MAIN=$(lsof -p "$PROXY_PY_PID" | wc -l)
+  echo "[$PROXY_PY_PID] Main process: $OPEN_FILES_BY_MAIN"
 
-pgrep -P "$PROXY_PY_PID" | while read -r acceptorPid; do
-  OPEN_FILES_BY_ACCEPTOR=$(lsof -p "$acceptorPid" | wc -l)
-  echo "[$acceptorPid] Acceptor process: $OPEN_FILES_BY_ACCEPTOR"
+  pgrep -P "$PROXY_PY_PID" | while read -r acceptorPid; do
+    OPEN_FILES_BY_ACCEPTOR=$(lsof -p "$acceptorPid" | wc -l)
+    echo "[$acceptorPid] Acceptor process: $OPEN_FILES_BY_ACCEPTOR"
 
-  pgrep -P "$acceptorPid" | while read -r childPid; do
-    OPEN_FILES_BY_CHILD_PROC=$(lsof -p "$childPid" | wc -l)
-    echo "  [$childPid] child process: $OPEN_FILES_BY_CHILD_PROC"
+    pgrep -P "$acceptorPid" | while read -r childPid; do
+      OPEN_FILES_BY_CHILD_PROC=$(lsof -p "$childPid" | wc -l)
+      echo "  [$childPid] child process: $OPEN_FILES_BY_CHILD_PROC"
+    done
   done
+
+  sleep 1
 done
