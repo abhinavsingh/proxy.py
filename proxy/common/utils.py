@@ -26,7 +26,7 @@ from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
-    DEFAULT_THREADLESS, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_THREADLESS, PROXY_AGENT_HEADER_VALUE, DEFAULT_SSL_CONTEXT_OPTIONS,
 )
 
 
@@ -219,20 +219,11 @@ def wrap_socket(
         cafile: Optional[str] = None,
 ) -> ssl.SSLSocket:
     """Use this to upgrade server_side socket to TLS."""
-    ctx = ssl.create_default_context(
-        ssl.Purpose.CLIENT_AUTH,
-        cafile=cafile,
-    )
-    ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+    ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH, cafile=cafile)
+    ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
     ctx.verify_mode = ssl.CERT_NONE
-    ctx.load_cert_chain(
-        certfile=certfile,
-        keyfile=keyfile,
-    )
-    return ctx.wrap_socket(
-        conn,
-        server_side=True,
-    )
+    ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+    return ctx.wrap_socket(conn, server_side=True)
 
 
 def new_socket_connection(

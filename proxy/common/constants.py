@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import ssl
 import sys
 import time
 import pathlib
@@ -156,6 +157,9 @@ DEFAULT_ENABLE_PROXY_PROTOCOL = False
 DEFAULT_SELECTOR_SELECT_TIMEOUT = 25 / 1000
 DEFAULT_WAIT_FOR_TASKS_TIMEOUT = 1 / 1000
 DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT = 1   # in seconds
+DEFAULT_SSL_CONTEXT_OPTIONS = (
+    ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
+)
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
 DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
