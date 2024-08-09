@@ -14,6 +14,7 @@ from typing import Optional
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.types import HostPort, TcpOrTlsSocket
+from ...common.constants import DEFAULT_SSL_CONTEXT_OPTIONS
 
 
 class TcpClientConnection(TcpConnection):
@@ -42,12 +43,8 @@ class TcpClientConnection(TcpConnection):
     def wrap(self, keyfile: str, certfile: str) -> None:
         self.connection.setblocking(True)
         self.flush()
-        ssl_context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
-        self._conn = ssl_context.wrap_socket(
-            self.connection,
-            server_side=True,
-            certfile=certfile,
-            keyfile=keyfile,
-            ssl_version=ssl.PROTOCOL_TLS,
-        )
+        ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+        ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
+        ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        self._conn = ctx.wrap_socket(self.connection, server_side=True)
         self.connection.setblocking(False)
