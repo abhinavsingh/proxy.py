@@ -253,14 +253,16 @@ class TestHttpProxyTlsInterception(Assertions):
         self.mock_ssl_wrap.assert_called_with(
             protocol=ssl.PROTOCOL_TLS_CLIENT,
         )
+        self.mock_ssl_wrap.return_value.load_cert_chain(
+            keyfile=self.flags.ca_signing_key_file,
+            certfile=HttpProxyPlugin.generated_cert_file_path(
+                self.flags.ca_cert_dir,
+                host,
+            ),
+        )
         self.mock_ssl_wrap.return_value.wrap_socket.assert_called_with(
             self._conn,
             server_side=True,
-            keyfile=self.flags.ca_signing_key_file,
-            certfile=HttpProxyPlugin.generated_cert_file_path(
-                self.flags.ca_cert_dir, host,
-            ),
-            ssl_version=ssl.PROTOCOL_TLS,
         )
         self.assertEqual(self._conn.setblocking.call_count, 2)
         self.assertEqual(
