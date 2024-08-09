@@ -46,16 +46,16 @@ class TcpClientConnection(TcpConnection):
         ctx = ssl.SSLContext(
             protocol=(
                 ssl.PROTOCOL_TLS_CLIENT
-                if self.tag == "server"
+                if self.tag == 'server'
                 else ssl.PROTOCOL_TLS_SERVER
-            )
+            ),
         )
         ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
         ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
         assert self.addr
-        kwargs: Dict[str, Any] = {"server_side": True}
-        if self.tag == "server":
+        kwargs: Dict[str, Any] = {'server_side': True}
+        if self.tag == 'server':
             assert self.addr
-            kwargs["server_hostname"] = self.addr[0]
+            kwargs['server_hostname'] = self.addr[0]
         self._conn = ctx.wrap_socket(self.connection, **kwargs)
         self.connection.setblocking(False)
