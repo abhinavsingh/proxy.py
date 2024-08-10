@@ -183,9 +183,9 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
         self._conn.send.assert_called_once_with(
             build_http_response(
                 200,
-                reason=b"OK",
+                reason=b'OK',
                 headers={
-                    b"Content-Type": b"application/x-ns-proxy-autoconfig",
+                    b'Content-Type': b'application/x-ns-proxy-autoconfig',
                 },
                 body=self.expected_response,
                 conn_close=True,
