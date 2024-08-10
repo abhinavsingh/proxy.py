@@ -76,10 +76,10 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    "--insecure-tls-interception",
-    action="store_true",
+    '--insecure-tls-interception',
+    action='store_true',
     default=DEFAULT_INSECURE_TLS_INTERCEPTION,
-    help="Default: False. Disables certificate verification",
+    help='Default: False. Disables certificate verification',
 )
 
 flags.add_argument(
