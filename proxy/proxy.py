@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Optional, cast
 
 from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
 from .core.work import ThreadlessPool
-from .core.event import EventManager
+from .core.event import EventQueue, EventManager
 from .http.codes import httpStatusCodes
 from .common.flag import FlagParser, flags
 from .http.client import client
@@ -43,6 +43,7 @@ from .common.constants import (
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
     DEFAULT_SSH_LISTENER_KLASS,
 )
+from .http.server.metrics import MetricsSubscriber
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -212,6 +213,10 @@ class Proxy:
     def __exit__(self, *args: Any) -> None:
         self.shutdown()
 
+    @property
+    def event_queue(self) -> Optional[EventQueue]:
+        return self.event_manager.queue if self.event_manager is not None else None
+
     def setup(self) -> None:
         # TODO: Introduce cron feature
         # https://github.com/abhinavsingh/proxy.py/discussions/808
@@ -259,15 +264,12 @@ class Proxy:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
             self.event_manager.setup()
-        event_queue = self.event_manager.queue \
-            if self.event_manager is not None \
-            else None
         # Setup remote executors only if
         # --local-executor mode isn't enabled.
         if self.remote_executors_enabled:
             self.executors = ThreadlessPool(
                 flags=self.flags,
-                event_queue=event_queue,
+                event_queue=self.event_queue,
                 executor_klass=RemoteFdExecutor,
             )
             self.executors.setup()
@@ -278,7 +280,7 @@ class Proxy:
             executor_queues=self.executors.work_queues if self.executors else [],
             executor_pids=self.executors.work_pids if self.executors else [],
             executor_locks=self.executors.work_locks if self.executors else [],
-            event_queue=event_queue,
+            event_queue=self.event_queue,
         )
         self.acceptors.setup()
         # Start SSH tunnel acceptor if enabled
@@ -379,11 +381,20 @@ class Proxy:
 
 
 def sleep_loop(p: Optional[Proxy] = None) -> None:
-    while True:
-        try:
-            time.sleep(1)
-        except KeyboardInterrupt:
-            break
+    subscriber: Optional[MetricsSubscriber] = None
+    if p and p.event_queue:
+        subscriber = MetricsSubscriber(p.event_queue)
+    try:
+        if subscriber:
+            subscriber.setup()
+        while True:
+            try:
+                time.sleep(1)
+            except KeyboardInterrupt:
+                break
+    finally:
+        if subscriber:
+            subscriber.shutdown()
 
 
 def main(**opts: Any) -> None:

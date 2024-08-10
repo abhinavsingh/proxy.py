@@ -7,16 +7,13 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
-
-    .. spelling::
-
-       pac
 """
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from .plugin import HttpWebServerBasePlugin
 from ..parser import HttpParser
 from .protocols import httpProtocolTypes
+from ...core.event import EventQueue, EventSubscriber, eventNames
 from ...common.flag import flags
 from ...common.utils import text_
 from ...common.constants import DEFAULT_METRICS_URL_PATH
@@ -56,3 +53,29 @@ class MetricsPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         return None
+
+
+class MetricsSubscriber:
+
+    def __init__(self, event_queue: EventQueue) -> None:
+        self.subscriber = EventSubscriber(
+            event_queue,
+            callback=MetricsSubscriber.callback,
+        )
+
+    def shutdown(self) -> None:
+        self.subscriber.shutdown()
+
+    def setup(self) -> None:
+        self.subscriber.setup()
+
+    @staticmethod
+    def callback(event: Dict[str, Any]) -> None:
+        if event["event_name"] == eventNames.WORK_STARTED:
+            print(event)
+        elif event["event_name"] == eventNames.REQUEST_COMPLETE:
+            print(event)
+        elif event["event_name"] == eventNames.WORK_FINISHED:
+            print(event)
+        else:
+            print("Unhandled", event)
