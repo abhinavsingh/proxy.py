@@ -63,11 +63,12 @@ class MetricsSubscriber:
             callback=MetricsSubscriber.callback,
         )
 
-    def shutdown(self) -> None:
-        self.subscriber.shutdown()
-
-    def setup(self) -> None:
+    def __enter__(self) -> "MetricsSubscriber":
         self.subscriber.setup()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.subscriber.shutdown()
 
     @staticmethod
     def callback(event: Dict[str, Any]) -> None:

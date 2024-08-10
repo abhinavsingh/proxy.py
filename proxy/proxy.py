@@ -381,25 +381,20 @@ class Proxy:
 
 
 def sleep_loop(p: Optional[Proxy] = None) -> None:
-    subscriber: Optional[MetricsSubscriber] = None
-    if p and p.event_queue:
-        subscriber = MetricsSubscriber(p.event_queue)
-    try:
-        if subscriber:
-            subscriber.setup()
-        while True:
-            try:
-                time.sleep(1)
-            except KeyboardInterrupt:
-                break
-    finally:
-        if subscriber:
-            subscriber.shutdown()
+    while True:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            break
 
 
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts) as p:
-        sleep_loop(p)
+        if p.event_queue is not None:
+            with MetricsSubscriber(p.event_queue):
+                sleep_loop(p)
+        else:
+            sleep_loop(p)
 
 
 def entry_point() -> None:
