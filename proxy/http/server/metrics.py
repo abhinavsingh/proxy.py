@@ -20,10 +20,10 @@ from ...common.constants import DEFAULT_METRICS_URL_PATH
 
 
 flags.add_argument(
-    "--metrics-path",
+    '--metrics-path',
     type=str,
     default=text_(DEFAULT_METRICS_URL_PATH),
-    help="Default: %s. Web server path to serve proxy.py metrics."
+    help='Default: %s. Web server path to serve proxy.py metrics.'
     % text_(DEFAULT_METRICS_URL_PATH),
 )
 
@@ -38,13 +38,13 @@ class MetricsPlugin(HttpWebServerBasePlugin):
             return [
                 (
                     httpProtocolTypes.HTTP,
-                    r"{0}$".format(
+                    r'{0}$'.format(
                         text_(self.flags.metrics_path),
                     ),
                 ),
                 (
                     httpProtocolTypes.HTTPS,
-                    r"{0}$".format(
+                    r'{0}$'.format(
                         text_(self.flags.metrics_path),
                     ),
                 ),
@@ -63,7 +63,7 @@ class MetricsSubscriber:
             callback=MetricsSubscriber.callback,
         )
 
-    def __enter__(self) -> "MetricsSubscriber":
+    def __enter__(self) -> 'MetricsSubscriber':
         self.subscriber.setup()
         return self
 
@@ -72,11 +72,11 @@ class MetricsSubscriber:
 
     @staticmethod
     def callback(event: Dict[str, Any]) -> None:
-        if event["event_name"] == eventNames.WORK_STARTED:
+        if event['event_name'] == eventNames.WORK_STARTED:
             print(event)
-        elif event["event_name"] == eventNames.REQUEST_COMPLETE:
+        elif event['event_name'] == eventNames.REQUEST_COMPLETE:
             print(event)
-        elif event["event_name"] == eventNames.WORK_FINISHED:
+        elif event['event_name'] == eventNames.WORK_FINISHED:
             print(event)
         else:
-            print("Unhandled", event)
+            print('Unhandled', event)
