@@ -43,7 +43,7 @@ from .common.constants import (
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
     DEFAULT_SSH_LISTENER_KLASS,
 )
-from .http.server.metrics import MetricsSubscriber
+from .http.server.metrics import MetricsEventSubscriber
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -390,8 +390,8 @@ def sleep_loop(p: Optional[Proxy] = None) -> None:
 
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts) as p:
-        if p.event_queue is not None:
-            with MetricsSubscriber(p.event_queue):
+        if p.event_queue is not None and p.flags.enable_metrics:
+            with MetricsEventSubscriber(p.event_queue):
                 sleep_loop(p)
         else:
             sleep_loop(p)

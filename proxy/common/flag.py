@@ -24,12 +24,13 @@ from .logger import Logger
 from .plugins import Plugins
 from .version import __version__
 from .constants import (
-    COMMA, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD, PLUGIN_HTTP_PROXY,
-    PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER, DEFAULT_NUM_WORKERS,
-    PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS, PLUGIN_INSPECT_TRAFFIC,
-    DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE, DEFAULT_DEVTOOLS_WS_PATH,
-    PLUGIN_DEVTOOLS_PROTOCOL, PLUGIN_WEBSOCKET_TRANSPORT,
-    DEFAULT_DATA_DIRECTORY_PATH, DEFAULT_MIN_COMPRESSION_LENGTH,
+    COMMA, PLUGIN_METRICS, PLUGIN_PAC_FILE, PLUGIN_DASHBOARD,
+    PLUGIN_HTTP_PROXY, PLUGIN_PROXY_AUTH, PLUGIN_WEB_SERVER,
+    DEFAULT_NUM_WORKERS, PLUGIN_REVERSE_PROXY, DEFAULT_NUM_ACCEPTORS,
+    PLUGIN_INSPECT_TRAFFIC, DEFAULT_DISABLE_HEADERS, PY2_DEPRECATION_MESSAGE,
+    DEFAULT_DEVTOOLS_WS_PATH, PLUGIN_DEVTOOLS_PROTOCOL,
+    PLUGIN_WEBSOCKET_TRANSPORT, DEFAULT_DATA_DIRECTORY_PATH,
+    DEFAULT_MIN_COMPRESSION_LENGTH,
 )
 
 
@@ -180,6 +181,13 @@ class FlagParser:
             opts.get(
                 'enable_events',
                 args.enable_events,
+            ),
+        )
+        args.enable_metrics = cast(
+            bool,
+            opts.get(
+                'enable_metrics',
+                args.enable_metrics,
             ),
         )
 
@@ -422,6 +430,10 @@ class FlagParser:
             default_plugins.append(PLUGIN_INSPECT_TRAFFIC)
             args.enable_events = True
             args.enable_devtools = True
+        if hasattr(args, 'enable_metrics') and args.enable_metrics:
+            default_plugins.append(PLUGIN_WEB_SERVER)
+            default_plugins.append(PLUGIN_METRICS)
+            args.enable_events = True
         if hasattr(args, 'enable_devtools') and args.enable_devtools:
             default_plugins.append(PLUGIN_DEVTOOLS_PROTOCOL)
             default_plugins.append(PLUGIN_WEB_SERVER)
