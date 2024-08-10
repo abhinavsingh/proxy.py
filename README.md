@@ -71,6 +71,7 @@
   - [Plugin Ordering](#plugin-ordering)
 - [End-to-End Encryption](#end-to-end-encryption)
 - [TLS Interception](#tls-interception)
+  - [Insecure TLS Interception](#insecure-tls-interception)
   - [TLS Interception With Docker](#tls-interception-with-docker)
 - [GROUT (NGROK Alternative)](#grout-ngrok-alternative)
   - [Grout Usage](#grout-usage)
@@ -1240,6 +1241,13 @@ cached file instead of plain text.
 
 Now use CA flags with other
 [plugin examples](#plugin-examples) to see them work with `https` traffic.
+
+## Insecure TLS Interception
+
+To intercept TLS traffic from a server using a self-signed certificate
+add the `--insecure-tls-interception` flag to disable mandatory TLS certificate validation.
+
+NOTE: This flag disables certificate check for all servers.
 
 ## TLS Interception With Docker
 
@@ -2510,17 +2518,16 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--enable-proxy-protocol] [--threadless] [--threaded]
-          [--num-workers NUM_WORKERS] [--enable-events] [--enable-conn-pool]
-          [--key-file KEY_FILE] [--cert-file CERT_FILE]
-          [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
-          [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
+usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
+          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
+          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
+          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
           [--hostname HOSTNAME] [--hostnames HOSTNAMES [HOSTNAMES ...]]
           [--port PORT] [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
@@ -2533,9 +2540,9 @@ usage: -m [-h] [--enable-proxy-protocol] [--threadless] [--threaded]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
           [--data-dir DATA_DIR] [--ssh-listener-klass SSH_LISTENER_KLASS]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
-          [--ca-key-file CA_KEY_FILE] [--ca-cert-dir CA_CERT_DIR]
-          [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
-          [--ca-signing-key-file CA_SIGNING_KEY_FILE]
+          [--ca-key-file CA_KEY_FILE] [--insecure-tls-interception]
+          [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
+          [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-requests]
           [--cache-by-content-type] [--cache-dir CACHE_DIR]
           [--proxy-pool PROXY_POOL] [--enable-web-server]
@@ -2549,13 +2556,25 @@ usage: -m [-h] [--enable-proxy-protocol] [--threadless] [--threaded]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc6.dev191+gef5a8922
+proxy.py v2.4.5
 
 options:
   -h, --help            show this help message and exit
-  --enable-proxy-protocol
-                        Default: False. If used, will enable proxy protocol.
-                        Only version 1 is currently supported.
+  --tunnel-hostname TUNNEL_HOSTNAME
+                        Default: None. Remote hostname or IP address to which
+                        SSH tunnel will be established.
+  --tunnel-port TUNNEL_PORT
+                        Default: 22. SSH port of the remote host.
+  --tunnel-username TUNNEL_USERNAME
+                        Default: None. Username to use for establishing SSH
+                        tunnel.
+  --tunnel-ssh-key TUNNEL_SSH_KEY
+                        Default: None. Private key path in pem format
+  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
+                        Default: None. Private key passphrase
+  --tunnel-remote-port TUNNEL_REMOTE_PORT
+                        Default: 8899. Remote port which will be forwarded
+                        locally for proxy.
   --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
                         linux). When disabled a new thread is spawned to
                         handle each client connection.
@@ -2567,6 +2586,9 @@ options:
   --enable-events       Default: False. Enables core to dispatch lifecycle
                         events. Plugins can be used to subscribe for core
                         events.
+  --enable-proxy-protocol
+                        Default: False. If used, will enable proxy protocol.
+                        Only version 1 is currently supported.
   --enable-conn-pool    Default: False. (WIP) Enable upstream connection
                         pooling.
   --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
@@ -2588,21 +2610,6 @@ options:
   --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
                         inactive connection must be dropped. Inactivity is
                         defined by no data sent or received by the client.
-  --tunnel-hostname TUNNEL_HOSTNAME
-                        Default: None. Remote hostname or IP address to which
-                        SSH tunnel will be established.
-  --tunnel-port TUNNEL_PORT
-                        Default: 22. SSH port of the remote host.
-  --tunnel-username TUNNEL_USERNAME
-                        Default: None. Username to use for establishing SSH
-                        tunnel.
-  --tunnel-ssh-key TUNNEL_SSH_KEY
-                        Default: None. Private key path in pem format
-  --tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE
-                        Default: None. Private key passphrase
-  --tunnel-remote-port TUNNEL_REMOTE_PORT
-                        Default: 8899. Remote port which will be forwarded
-                        locally for proxy.
   --local-executor LOCAL_EXECUTOR
                         Default: 1. Enabled by default. Use 0 to disable. When
                         enabled acceptors will make use of local (same
@@ -2668,6 +2675,8 @@ options:
                         Default: None. CA key to use for signing dynamically
                         generated HTTPS certificates. If used, must also pass
                         --ca-cert-file and --ca-signing-key-file
+  --insecure-tls-interception
+                        Default: False. Disables certificate verification
   --ca-cert-dir CA_CERT_DIR
                         Default: ~/.proxy/certificates. Directory to store
                         dynamically generated certificates. Also see --ca-key-
@@ -2676,9 +2685,9 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv31013/l
-                        ib/python3.10/site-packages/certifi/cacert.pem.
-                        Provide path to custom CA bundle for peer certificate
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3118/li
+                        b/python3.11/site-packages/certifi/cacert.pem. Provide
+                        path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic

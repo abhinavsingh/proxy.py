@@ -15,6 +15,7 @@ from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.types import HostPort, TcpOrTlsSocket
 from ...common.utils import new_socket_connection
+from ...common.constants import DEFAULT_SSL_CONTEXT_OPTIONS
 
 
 class TcpServerConnection(TcpConnection):
@@ -51,12 +52,12 @@ class TcpServerConnection(TcpConnection):
             # Ref https://github.com/PyCQA/pylint/issues/3691
             verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED,     # pylint: disable=E1101
     ) -> None:
-        ctx = ssl.create_default_context(
-            ssl.Purpose.SERVER_AUTH,
-            cafile=ca_file,
+        ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=ca_file)
+        ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
+        # pylint: disable=E1101
+        ctx.check_hostname = (
+            False if verify_mode == ssl.VerifyMode.CERT_NONE else hostname is not None
         )
-        ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        ctx.check_hostname = hostname is not None
         ctx.verify_mode = verify_mode
         self.connection.setblocking(True)
         self._conn = ctx.wrap_socket(
