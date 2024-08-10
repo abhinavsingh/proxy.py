@@ -59,19 +59,6 @@ def test_on_client_connection_called_on_teardown(mocker: MockerFixture) -> None:
     assert _conn.closed
 
 
-def mock_selector_for_client_read(self: Any) -> None:
-    self.mock_selector.return_value.select.return_value = [
-        (
-            selectors.SelectorKey(
-                fileobj=self._conn.fileno(),
-                fd=self._conn.fileno(),
-                events=selectors.EVENT_READ,
-                data=None,
-            ),
-            selectors.EVENT_READ,
-        ),
-    ]
-
 # @mock.patch('socket.fromfd')
 # def test_on_client_connection_called_on_teardown(
 #         self, mock_fromfd: mock.Mock,
@@ -171,16 +158,40 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
             b'GET / HTTP/1.1',
             CRLF,
         ])
-        mock_selector_for_client_read(self)
+        self.mock_selector.return_value.select.side_effect = [
+            [
+                (
+                    selectors.SelectorKey(
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
+                        events=selectors.EVENT_READ,
+                        data=None,
+                    ),
+                    selectors.EVENT_READ,
+                ),
+            ],
+            [
+                (
+                    selectors.SelectorKey(
+                        fileobj=self._conn.fileno(),
+                        fd=self._conn.fileno(),
+                        events=selectors.EVENT_WRITE,
+                        data=None,
+                    ),
+                    selectors.EVENT_WRITE,
+                ),
+            ],
+        ]
 
     @pytest.mark.asyncio    # type: ignore[misc]
     async def test_pac_file_served_from_disk(self) -> None:
+        await self.protocol_handler._run_once()
         await self.protocol_handler._run_once()
         self.assertEqual(
             self.protocol_handler.request.state,
             httpParserStates.COMPLETE,
         )
-        self._conn.send.called_once_with(
+        self._conn.send.assert_called_once_with(
             build_http_response(
                 200,
                 reason=b'OK',
