@@ -9,11 +9,12 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.types import HostPort, TcpOrTlsSocket
+from ...common.constants import DEFAULT_SSL_CONTEXT_OPTIONS
 
 
 class TcpClientConnection(TcpConnection):
@@ -42,11 +43,19 @@ class TcpClientConnection(TcpConnection):
     def wrap(self, keyfile: str, certfile: str) -> None:
         self.connection.setblocking(True)
         self.flush()
-        self._conn = ssl.wrap_socket(
-            self.connection,
-            server_side=True,
-            certfile=certfile,
-            keyfile=keyfile,
-            ssl_version=ssl.PROTOCOL_TLS,
+        ctx = ssl.SSLContext(
+            protocol=(
+                ssl.PROTOCOL_TLS_CLIENT
+                if self.tag == 'server'
+                else ssl.PROTOCOL_TLS_SERVER
+            ),
         )
+        ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
+        ctx.load_cert_chain(certfile=certfile, keyfile=keyfile)
+        assert self.addr
+        kwargs: Dict[str, Any] = {'server_side': True}
+        if self.tag == 'server':
+            assert self.addr
+            kwargs['server_hostname'] = self.addr[0]
+        self._conn = ctx.wrap_socket(self.connection, **kwargs)
         self.connection.setblocking(False)

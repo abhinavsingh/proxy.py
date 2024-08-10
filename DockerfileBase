@@ -1,0 +1,43 @@
+FROM python:3.12-alpine
+
+LABEL org.opencontainers.image.title="proxy.py" \
+    org.opencontainers.image.description="💫 Ngrok FRP Alternative • ⚡ Fast • 🪶 Lightweight • 0️⃣ Dependency • 🔌 Pluggable • \
+    😈 TLS interception • 🔒 DNS-over-HTTPS • 🔥 Poor Man's VPN • ⏪ Reverse & ⏩ Forward • \
+    👮🏿 \"Proxy Server\" framework • 🌐 \"Web Server\" framework • ➵ ➶ ➷ ➠ \"PubSub\" framework • \
+    👷 \"Work\" acceptor & executor framework" \
+    org.opencontainers.image.url="https://github.com/abhinavsingh/proxy.py" \
+    org.opencontainers.image.source="https://github.com/abhinavsingh/proxy.py" \
+    org.opencontainers.image.licenses="BSD-3-Clause" \
+    org.opencontainers.image.authors="Abhinav Singh <mailsforabhinav@gmail.com>" \
+    org.opencontainers.image.vendor="Abhinav Singh" \
+    org.opencontainers.image.created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    org.opencontainers.image.documentation="https://github.com/abhinavsingh/proxy.py#readme" \
+    org.opencontainers.image.ref.name="abhinavsingh/proxy.py" \
+    com.abhinavsingh.docker.cmd="docker run -it --rm -p 8899:8899 abhinavsingh/proxy.py"
+
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
+
+# Install paramiko and cryptography to allow
+# users to use tunneling features using Docker
+RUN apk update && apk --no-cache add \
+    --virtual .builddeps \
+    gcc \
+    musl-dev \
+    libffi-dev \
+    openssl-dev \
+    python3-dev \
+    cargo \
+    rust \
+    make
+RUN python -m venv /proxy/venv && \
+    /proxy/venv/bin/pip install --no-compile --no-cache-dir \
+    -U pip wheel && \
+    /proxy/venv/bin/pip install --no-compile --no-cache-dir \
+    paramiko==3.4.0 \
+    cryptography==42.0.4 \
+    --prefer-binary && \
+    apk del .builddeps && \
+    find . -type d -name '__pycache__' | xargs rm -rf && \
+    rm -rf /var/cache/apk/* && \
+    rm -rf /root/.cache/

@@ -13,7 +13,7 @@
 [![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
 
 [![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
-[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11&color=blue&style=flat-square)](https://www.python.org/)
+[![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12&color=blue&style=flat-square)](https://www.python.org/)
 [![Checked with mypy](https://img.shields.io/static/v1?label=MyPy&message=checked&color=blue&style=flat-square)](http://mypy-lang.org/)
 
 [![doc](https://img.shields.io/readthedocs/proxypy/latest?style=flat-square&color=darkgreen)](https://proxypy.readthedocs.io/)
@@ -59,6 +59,7 @@
     - [Proxy Pool Plugin](#proxypoolplugin)
     - [Filter By Client IP Plugin](#filterbyclientipplugin)
     - [Modify Chunk Response Plugin](#modifychunkresponseplugin)
+    - [Modify Request Header Plugin](#modifyrequestheaderplugin)
     - [Cloudflare DNS Resolver Plugin](#cloudflarednsresolverplugin)
     - [Custom DNS Resolver Plugin](#customdnsresolverplugin)
     - [Custom Network Interface](#customnetworkinterface)
@@ -71,6 +72,14 @@
 - [End-to-End Encryption](#end-to-end-encryption)
 - [TLS Interception](#tls-interception)
   - [TLS Interception With Docker](#tls-interception-with-docker)
+- [GROUT (NGROK Alternative)](#grout-ngrok-alternative)
+  - [Grout Usage](#grout-usage)
+  - [Grout Authentication](#grout-authentication)
+  - [Grout Paths](#grout-paths)
+  - [Grout Wildcard Domains](#grout-wildcard-domains)
+  - [Grout using Docker](#grout-using-docker)
+  - [How Grout works](#how-grout-works)
+  - [Self-hosted Grout](#self-hosted-grout)
 - [Proxy Over SSH Tunnel](#proxy-over-ssh-tunnel)
   - [Proxy Remote Requests Locally](#proxy-remote-requests-locally)
   - [Proxy Local Requests Remotely](#proxy-local-requests-remotely)
@@ -138,6 +147,7 @@
 [//]: # (DO-NOT-REMOVE-docs-badges-END)
 
 # Features
+- [A drop-in alternative to `ngrok`](#grout-ngrok-alternative)
 - Fast & Scalable
 
   - Scale up by using all available cores on the system
@@ -927,6 +937,31 @@ plugin
 
 Modify `ModifyChunkResponsePlugin` to your taste. Example, instead of sending hard-coded chunks, parse and modify the original `JSON` chunks received from the upstream server.
 
+### ModifyRequestHeaderPlugin
+
+This plugin demonstrate how to modify outgoing HTTPS request headers under TLS interception mode.
+
+Start `proxy.py` as:
+
+```console
+❯ proxy \
+    --plugins proxy.plugin.ModifyRequestHeaderPlugin \
+    ... [TLS interception flags] ...
+```
+
+Verify using `curl -x localhost:8899 --cacert ca-cert.pem https://httpbin.org/get`:
+
+```console
+{
+  "args": {},
+  "headers": {
+    ... [redacted] ...,
+    "X-Proxy-Py-Version": "2.4.4rc6.dev15+gf533c711"
+  },
+  ... [redacted] ...
+}
+```
+
 ### CloudflareDnsResolverPlugin
 
 This plugin uses `Cloudflare` hosted `DNS-over-HTTPS` [API](https://developers.cloudflare.com/1.1.1.1/encrypted-dns/dns-over-https/make-api-requests/dns-json) (json).
@@ -1291,6 +1326,141 @@ with TLS Interception:
      "url": "http://httpbin.org/get"
    }
    ```
+
+# GROUT (NGROK Alternative)
+
+1. `grout` is a drop-in alternative for `ngrok` and `frp`
+2. `grout` comes packaged within `proxy.py`
+
+## Grout Usage
+
+```console
+❯ grout
+NAME:
+  grout - securely tunnel local files, folders and services to public URLs
+
+USAGE:
+  grout route [name]
+
+DESCRIPTION:
+  grout exposes local networked services behinds NATs and firewalls to the
+  public internet over a secure tunnel. Share local folders, directories and websites,
+  build/test webhook consumers and self-host personal services to public URLs.
+
+EXAMPLES:
+  Share Files and Folders:
+    grout C:\path\to\folder                          # Share a folder on your system
+    grout /path/to/folder                            # Share a folder on your system
+    grout /path/to/folder --basic-auth user:pass     # Add authentication for shared folder
+    grout /path/to/photo.jpg                         # Share a specific file on your system
+
+  Expose HTTP, HTTPS and Websockets:
+    grout http://localhost:9090                      # Expose HTTP service running on port 9090
+    grout https://localhost:8080                     # Expose HTTPS service running on port 8080
+    grout https://localhost:8080 --path /worker/     # Expose only certain paths of HTTPS service on port 8080
+    grout https://localhost:8080 --basic-auth u:p    # Add authentication for exposed HTTPS service on port 8080
+
+  Expose TCP Services:
+    grout tcp://:6379                                # Expose Redis service running locally on port 6379
+    grout tcp://:22                                  # Expose SSH service running locally on port 22
+
+  Custom URLs:
+    grout https://localhost:8080 abhinavsingh        # Custom URL for HTTPS service running on port 8080
+    grout tcp://:22 abhinavsingh                     # Custom URL for SSH service running locally on port 22
+
+  Custom Domains:
+    grout tcp://:5432 abhinavsingh.domain.tld        # Custom URL for Postgres service running locally on port 5432
+
+  Self-hosted solutions:
+    grout tcp://:5432 abhinavsingh.my.server         # Custom URL for Postgres service running locally on port 5432
+
+SUPPORT:
+  Write to us at support@jaxl.com
+
+  Privacy policy and Terms & conditions
+  https://jaxl.com/privacy/
+
+  Created by Jaxl™
+  https://jaxl.io
+```
+
+## Grout Authentication
+
+Grout supports authentication to protect your files, folders and services from unauthorized
+access.  Use `--basic-auth` flag to enforce authentication.  Example:
+
+```console
+grout /path/to/folder --basic-auth user:pass
+grout https://localhost:8080 --basic-auth u:p
+```
+
+## Grout Paths
+
+By default, Grout allows access to all paths on the services.  Use `--path` flag to restrict
+access to only certain paths on your web service.  Example:
+
+```console
+grout https://localhost:8080 --path /worker/
+grout https://localhost:8080 --path /webhook/ --path /callback/
+```
+
+## Grout Wildcard Domains
+
+By default, Grout client serves incoming traffic on a dedicated subdomain.
+However, some services (e.g. Kubernetes) may want to serve traffic on adhoc subdomains.
+Starting a dedicated Grout client for every adhoc subdomain may not be a practical solution.
+
+For such scenarios, Grout supports wildcard domains.  Here is how to configure your own
+wildcard domain for use with Grout clients.
+
+1. Choose a domain e.g. `custom.example.com`
+2. Your service wants to serve traffic for `custom.example.com` and `*.custom.example.com`
+3. If you plan on using `https://`, you need to setup a load balancer:
+   - Setup a HTTPS load balancer (LB)
+   - Configure LB with certificate generated for `custom.example.com` and `*.custom.example.com`
+   - Point traffic to Grout service public IP addresses
+4. Contact Grout team at support@jaxl.com to whitelist `custom.example.com`.  Grout team will make
+   sure you really own the domain and you have configured a valid SSL certificate as described above
+
+Start Grout with `--wildcard` flag.  Example:
+
+```console
+grout https://localhost:8080 custom.example.com --wildcard
+2024-08-05 18:24:59,294 - grout - Logged in as someone@gmail.com
+2024-08-05 18:25:03,159 - setup - Grouting https://*.custom.domain.com
+```
+
+## Grout using Docker
+
+```console
+❯ docker run --rm -it \
+  --entrypoint grout \
+  -v ~/.proxy:/root/.proxy \
+  abhinavsingh/proxy.py:latest \
+  http://host.docker.internal:29876
+```
+
+Above:
+
+- We changed `--entrypoint` to `grout`
+- We replaced `localhost` with `host.docker.internal`, so that `grout` can route traffic to port `29876` running on the host machine
+- *(Optional)* Mount host machine `~/.proxy` folder, so that `grout` credentials can persist across container restarts
+
+## How Grout works
+
+- `grout` infrastructure has 2 components: client and server
+- `grout` client has 2 components: a thin and a thick client
+- `grout` thin client is part of open source `proxy.py` (BSD 3-Clause License)
+- `grout` thick client and servers are hosted at [jaxl.io](https://jaxl.io)
+  and a copyright of [Jaxl Innovations Private Limited](https://jaxl.com)
+- `grout` server has 3 components: a registry server, a reverse proxy server and a tunnel server
+
+## Self-Hosted `grout`
+
+- `grout` thick client and servers can also be hosted on your GCP, AWS, Cloud infrastructures
+- With a self-hosted version, your traffic flows through the network you control and trust
+- `grout` developers at [jaxl.io](https://jaxl.io) provides GCP, AWS, Docker images for self-hosted solutions
+- Please drop an email at [support@jaxl.com](mailto:support@jaxl.com) to get started.
 
 # Proxy Over SSH Tunnel
 
@@ -2342,12 +2512,17 @@ To run standalone benchmark for `proxy.py`, use the following command from repo 
 
 ```console
 ❯ proxy -h
-usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
+usage: -m [-h] [--enable-proxy-protocol] [--threadless] [--threaded]
+          [--num-workers NUM_WORKERS] [--enable-events] [--enable-conn-pool]
+          [--key-file KEY_FILE] [--cert-file CERT_FILE]
+          [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
+          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
+          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
+          [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--tunnel-username TUNNEL_USERNAME]
           [--tunnel-ssh-key TUNNEL_SSH_KEY]
           [--tunnel-ssh-key-passphrase TUNNEL_SSH_KEY_PASSPHRASE]
-          [--tunnel-remote-port TUNNEL_REMOTE_PORT] [--threadless]
-          [--threaded] [--num-workers NUM_WORKERS] [--enable-events]
+          [--tunnel-remote-port TUNNEL_REMOTE_PORT]
           [--local-executor LOCAL_EXECUTOR] [--backlog BACKLOG]
           [--hostname HOSTNAME] [--hostnames HOSTNAMES [HOSTNAMES ...]]
           [--port PORT] [--ports PORTS [PORTS ...]] [--port-file PORT_FILE]
@@ -2359,10 +2534,6 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--basic-auth BASIC_AUTH] [--enable-ssh-tunnel]
           [--work-klass WORK_KLASS] [--pid-file PID_FILE] [--openssl OPENSSL]
           [--data-dir DATA_DIR] [--ssh-listener-klass SSH_LISTENER_KLASS]
-          [--enable-proxy-protocol] [--enable-conn-pool] [--key-file KEY_FILE]
-          [--cert-file CERT_FILE] [--client-recvbuf-size CLIENT_RECVBUF_SIZE]
-          [--server-recvbuf-size SERVER_RECVBUF_SIZE]
-          [--max-sendbuf-size MAX_SENDBUF_SIZE] [--timeout TIMEOUT]
           [--disable-http-proxy] [--disable-headers DISABLE_HEADERS]
           [--ca-key-file CA_KEY_FILE] [--insecure] [--ca-cert-dir CA_CERT_DIR]
           [--ca-cert-file CA_CERT_FILE] [--ca-file CA_FILE]
@@ -2380,10 +2551,45 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.4rc6.dev172+ge1879403.d20240425
+proxy.py v2.4.4rc6.dev191+gef5a8922
 
 options:
   -h, --help            show this help message and exit
+  --enable-proxy-protocol
+                        Default: False. If used, will enable proxy protocol.
+                        Only version 1 is currently supported.
+  --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
+                        linux). When disabled a new thread is spawned to
+                        handle each client connection.
+  --threaded            Default: False. Disabled by default on Python < 3.8
+                        and windows. When enabled a new thread is spawned to
+                        handle each client connection.
+  --num-workers NUM_WORKERS
+                        Defaults to number of CPU cores.
+  --enable-events       Default: False. Enables core to dispatch lifecycle
+                        events. Plugins can be used to subscribe for core
+                        events.
+  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
+                        pooling.
+  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --cert-file.
+  --cert-file CERT_FILE
+                        Default: None. Server certificate to enable end-to-end
+                        TLS encryption with clients. If used, must also pass
+                        --key-file.
+  --client-recvbuf-size CLIENT_RECVBUF_SIZE
+                        Default: 128 KB. Maximum amount of data received from
+                        the client in a single recv() operation.
+  --server-recvbuf-size SERVER_RECVBUF_SIZE
+                        Default: 128 KB. Maximum amount of data received from
+                        the server in a single recv() operation.
+  --max-sendbuf-size MAX_SENDBUF_SIZE
+                        Default: 64 KB. Maximum amount of data to flush in a
+                        single send() operation.
+  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
+                        inactive connection must be dropped. Inactivity is
+                        defined by no data sent or received by the client.
   --tunnel-hostname TUNNEL_HOSTNAME
                         Default: None. Remote hostname or IP address to which
                         SSH tunnel will be established.
@@ -2399,17 +2605,6 @@ options:
   --tunnel-remote-port TUNNEL_REMOTE_PORT
                         Default: 8899. Remote port which will be forwarded
                         locally for proxy.
-  --threadless          Default: True. Enabled by default on Python 3.8+ (mac,
-                        linux). When disabled a new thread is spawned to
-                        handle each client connection.
-  --threaded            Default: False. Disabled by default on Python < 3.8
-                        and windows. When enabled a new thread is spawned to
-                        handle each client connection.
-  --num-workers NUM_WORKERS
-                        Defaults to number of CPU cores.
-  --enable-events       Default: False. Enables core to dispatch lifecycle
-                        events. Plugins can be used to subscribe for core
-                        events.
   --local-executor LOCAL_EXECUTOR
                         Default: 1. Enabled by default. Use 0 to disable. When
                         enabled acceptors will make use of local (same
@@ -2465,30 +2660,6 @@ options:
   --ssh-listener-klass SSH_LISTENER_KLASS
                         Default: proxy.core.ssh.listener.SshTunnelListener. An
                         implementation of BaseSshTunnelListener
-  --enable-proxy-protocol
-                        Default: False. If used, will enable proxy protocol.
-                        Only version 1 is currently supported.
-  --enable-conn-pool    Default: False. (WIP) Enable upstream connection
-                        pooling.
-  --key-file KEY_FILE   Default: None. Server key file to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --cert-file.
-  --cert-file CERT_FILE
-                        Default: None. Server certificate to enable end-to-end
-                        TLS encryption with clients. If used, must also pass
-                        --key-file.
-  --client-recvbuf-size CLIENT_RECVBUF_SIZE
-                        Default: 128 KB. Maximum amount of data received from
-                        the client in a single recv() operation.
-  --server-recvbuf-size SERVER_RECVBUF_SIZE
-                        Default: 128 KB. Maximum amount of data received from
-                        the server in a single recv() operation.
-  --max-sendbuf-size MAX_SENDBUF_SIZE
-                        Default: 64 KB. Maximum amount of data to flush in a
-                        single send() operation.
-  --timeout TIMEOUT     Default: 10.0. Number of seconds after which an
-                        inactive connection must be dropped. Inactivity is
-                        defined by no data sent or received by the client.
   --disable-http-proxy  Default: False. Whether to disable
                         proxy.HttpProxyPlugin.
   --disable-headers DISABLE_HEADERS

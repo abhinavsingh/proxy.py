@@ -446,8 +446,9 @@ jobs:
         # NOTE: The latest and the lowest supported Pythons are prioritized
         # NOTE: to improve the responsiveness. It's nice to see the most
         # NOTE: important results first.
-        - '3.11'
+        - '3.12'
         - 3.6
+        - '3.11'
         - '3.10'
         - 3.9
         - 3.8
@@ -546,11 +547,12 @@ jobs:
         --skip-missing-interpreters false
         --skip-pkg-install
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         flags: pytest, GHA, Python ${{ matrix.python }}, ${{ runner.os }}
         verbose: true
-
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   test-container:
     runs-on: ubuntu-20.04
     permissions:
@@ -952,7 +954,6 @@ jobs:
       with:
         username: abhinavsingh
         password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-    # TODO: openssl image is not published on DockerHub
     - name: Push to DockerHub
       run: >-
         REGISTRY_URL="abhinavsingh/proxy.py";
@@ -964,7 +965,6 @@ jobs:
         --platform ${{
           needs.pre-setup.outputs.container-platforms
         }}
-        --build-arg SKIP_OPENSSL=1
         --build-arg PROXYPY_PKG_PATH='dist/${{
           needs.pre-setup.outputs.wheel-artifact-name
         }}'
