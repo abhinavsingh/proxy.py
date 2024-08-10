@@ -56,7 +56,7 @@ class TcpServerConnection(TcpConnection):
             cafile=ca_file,
         )
         ctx.options |= ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1
-        if verify_mode == ssl.VerifyMode.CERT_NONE:
+        if verify_mode == ssl.VerifyMode.CERT_NONE:  # pylint: disable=E1101
             ctx.check_hostname = False
         else:
             ctx.check_hostname = hostname is not None

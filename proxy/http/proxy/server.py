@@ -768,6 +768,7 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         assert isinstance(self.upstream.connection, socket.socket)
         do_close = False
         try:
+            # pylint: disable=E1101
             verify_mode = ssl.VerifyMode.CERT_NONE if self.flags.insecure else ssl.VerifyMode.CERT_REQUIRED
             self.upstream.wrap(
                 text_(self.request.host),
