@@ -12,6 +12,7 @@
 
        utils
 """
+import os
 import ssl
 import sys
 import socket
@@ -43,11 +44,16 @@ def cert_der_to_dict(der: Optional[bytes]) -> Dict[str, Any]:
     """Parse a DER formatted certificate to a python dict"""
     if not der:
         return {}
-    with tempfile.NamedTemporaryFile() as cert_file:
-        certificate_pem = ssl.DER_cert_to_PEM_cert(der)
-        cert_file.write(certificate_pem.encode())
+    with tempfile.NamedTemporaryFile(delete=False) as cert_file:
+        pem = ssl.DER_cert_to_PEM_cert(der)
+        cert_file.write(pem.encode())
+        cert_file.flush()
         cert_file.seek(0)
+    try:
         certificate = _ssl._test_decode_cert(cert_file.name)
+    finally:
+        cert_file.close()
+        os.remove(cert_file.name)
     return certificate or {}
 
 
