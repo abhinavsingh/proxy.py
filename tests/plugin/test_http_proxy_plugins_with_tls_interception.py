@@ -29,7 +29,7 @@ from proxy.http.responses import (
 from proxy.core.connection import TcpServerConnection
 from .utils import get_plugin_by_test_name
 from ..test_assertions import Assertions
-from ..certificates.test_cert_data import test_cert_bytes
+from ..certificates.test_cert_data import mock_cert
 
 
 class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
@@ -77,9 +77,6 @@ class TestHttpProxyPluginExamplesWithTlsInterception(Assertions):
             HttpClientConnection(self._conn, self._addr), flags=self.flags,
         )
         self.protocol_handler.initialize()
-
-        def mock_cert(a: Any) -> Any:
-            return test_cert_bytes
 
         self.server = self.mock_server_conn.return_value
         self.server_ssl_connection = mocker.MagicMock(spec=ssl.SSLSocket)

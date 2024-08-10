@@ -30,7 +30,7 @@ from proxy.http.responses import PROXY_TUNNEL_ESTABLISHED_RESPONSE_PKT
 from proxy.core.connection import TcpServerConnection
 from proxy.common.constants import DEFAULT_CA_FILE
 from ...test_assertions import Assertions
-from ...certificates.test_cert_data import test_cert_bytes
+from ...certificates.test_cert_data import mock_cert
 
 
 class TestHttpProxyTlsInterception(Assertions):
@@ -56,9 +56,6 @@ class TestHttpProxyTlsInterception(Assertions):
 
         self.fileno = 10
         self.mock_socket_dup.side_effect = lambda fd: fd
-
-        def mock_cert(a: Any) -> Any:
-            return test_cert_bytes
 
         # Used for server side wrapping
         self.mock_ssl_context = mocker.patch('ssl.create_default_context')
