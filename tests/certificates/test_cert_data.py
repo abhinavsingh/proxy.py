@@ -20,26 +20,26 @@ def mock_cert(_: Any) -> Any:
 
 
 cert_dict = {
-    "subject": (
-        (("countryName", "as"),),
-        (("stateOrProvinceName", "as"),),
-        (("localityName", "as"),),
-        (("organizationName", "as"),),
-        (("organizationalUnitName", "as"),),
-        (("commonName", "as"),),
-        (("emailAddress", "as"),),
+    'subject': (
+        (('countryName', 'as'),),
+        (('stateOrProvinceName', 'as'),),
+        (('localityName', 'as'),),
+        (('organizationName', 'as'),),
+        (('organizationalUnitName', 'as'),),
+        (('commonName', 'as'),),
+        (('emailAddress', 'as'),),
     ),
-    "issuer": (
-        (("countryName", "as"),),
-        (("stateOrProvinceName", "as"),),
-        (("localityName", "as"),),
-        (("organizationName", "as"),),
-        (("organizationalUnitName", "as"),),
-        (("commonName", "as"),),
-        (("emailAddress", "as"),),
+    'issuer': (
+        (('countryName', 'as'),),
+        (('stateOrProvinceName', 'as'),),
+        (('localityName', 'as'),),
+        (('organizationName', 'as'),),
+        (('organizationalUnitName', 'as'),),
+        (('commonName', 'as'),),
+        (('emailAddress', 'as'),),
     ),
-    "version": 3,
-    "serialNumber": "5045018CA6EAD823CF90B044C704DE9B3959F320",
-    "notBefore": "Apr 29 12:50:57 2024 GMT",
-    "notAfter": "Apr 29 12:50:57 2025 GMT",
+    'version': 3,
+    'serialNumber': '5045018CA6EAD823CF90B044C704DE9B3959F320',
+    'notBefore': 'Apr 29 12:50:57 2024 GMT',
+    'notAfter': 'Apr 29 12:50:57 2025 GMT',
 }
