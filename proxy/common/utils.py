@@ -25,8 +25,7 @@ import contextlib
 from types import TracebackType
 from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
-# noqa: WPS436
-import _ssl  # type: ignore[import-not-found]
+import _ssl  # noqa: WPS436
 
 from .types import HostPort
 from .constants import (
