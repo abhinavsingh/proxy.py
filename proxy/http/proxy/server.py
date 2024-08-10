@@ -40,10 +40,10 @@ from ...core.connection import (
     TcpServerConnection, TcpConnectionUninitializedException,
 )
 from ...common.constants import (
-    COMMA, DEFAULT_CA_FILE, DEFAULT_INSECURE, PLUGIN_PROXY_AUTH,
-    DEFAULT_CA_CERT_DIR, DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE,
-    DEFAULT_DISABLE_HEADERS, PROXY_AGENT_HEADER_VALUE,
-    DEFAULT_DISABLE_HTTP_PROXY, DEFAULT_CA_SIGNING_KEY_FILE,
+    COMMA, DEFAULT_CA_FILE, PLUGIN_PROXY_AUTH, DEFAULT_CA_CERT_DIR,
+    DEFAULT_CA_KEY_FILE, DEFAULT_CA_CERT_FILE, DEFAULT_DISABLE_HEADERS,
+    PROXY_AGENT_HEADER_VALUE, DEFAULT_DISABLE_HTTP_PROXY,
+    DEFAULT_CA_SIGNING_KEY_FILE, DEFAULT_INSECURE_TLS_INTERCEPTION,
     DEFAULT_HTTP_PROXY_ACCESS_LOG_FORMAT,
     DEFAULT_HTTPS_PROXY_ACCESS_LOG_FORMAT,
 )
@@ -76,10 +76,10 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    '--insecure',
-    action='store_true',
-    default=DEFAULT_INSECURE,
-    help='Default: False. Disables certificate verification',
+    "--insecure-tls-interception",
+    action="store_true",
+    default=DEFAULT_INSECURE_TLS_INTERCEPTION,
+    help="Default: False. Disables certificate verification",
 )
 
 flags.add_argument(
@@ -769,7 +769,11 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         do_close = False
         try:
             # pylint: disable=E1101
-            verify_mode = ssl.VerifyMode.CERT_NONE if self.flags.insecure else ssl.VerifyMode.CERT_REQUIRED
+            verify_mode = (
+                ssl.VerifyMode.CERT_NONE
+                if self.flags.insecure_tls_interception
+                else ssl.VerifyMode.CERT_REQUIRED
+            )
             self.upstream.wrap(
                 text_(self.request.host),
                 self.flags.ca_file,
