@@ -168,7 +168,7 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
                         data=None,
                     ),
                     selectors.EVENT_READ,
-                )
+                ),
             ],
             [
                 (
@@ -179,7 +179,7 @@ class TestWebServerPluginWithPacFilePlugin(Assertions):
                         data=None,
                     ),
                     selectors.EVENT_WRITE,
-                )
+                ),
             ],
         ]
 
