@@ -41,7 +41,7 @@ RUN /proxy/venv/bin/pip install --no-compile --no-cache-dir \
   /proxy/venv/bin/pip uninstall -y wheel setuptools pip && \
   /usr/local/bin/pip uninstall -y wheel setuptools pip
 
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 COPY --from=builder /README.md /README.md
 COPY --from=builder /proxy /proxy
 RUN if [[ -z "$SKIP_OPENSSL" ]]; then \
