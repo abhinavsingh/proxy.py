@@ -39,7 +39,7 @@ class MetricsStorage:
 
     def _incr_counter(self, name: str, by: float = 1.0) -> None:
         current = self._get_counter(name)
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
         Path(path).write_text(str(current + by), encoding='utf-8')
 
     def get_gauge(self, name: str) -> float:
@@ -58,7 +58,7 @@ class MetricsStorage:
             self._set_gauge(name, value)
 
     def _set_gauge(self, name: str, value: float) -> None:
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.gauge')
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
         with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
