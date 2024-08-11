@@ -93,6 +93,11 @@ class MetricsStorage:
 
 
 def get_collector(metrics_lock: Lock) -> 'Collector':
+    """
+    Returns an instance of the `Collector` class.
+
+    :rtype: prometheus_client.core.Collector
+    """
     # pylint: disable=import-outside-toplevel
     from prometheus_client.core import Metric
     from prometheus_client.registry import Collector
@@ -107,24 +112,35 @@ def get_collector(metrics_lock: Lock) -> 'Collector':
             # pylint: disable=import-outside-toplevel
             from prometheus_client.core import CounterMetricFamily
 
-            counter = CounterMetricFamily(
-                'proxypy_counter',
-                'Total count of proxypy events',
-                labels=['proxypy'],
+            work_started = CounterMetricFamily(
+                'proxypy_work_started',
+                'Total number of work accepted and started by proxy.py core',
             )
-            counter.add_metric(
-                ['work_started'],
+            work_started.add_metric(
+                ['proxypy_work_started'],
                 self.storage.get_counter('work_started'),
             )
-            counter.add_metric(
-                ['request_complete'],
+            yield work_started
+
+            request_complete = CounterMetricFamily(
+                'proxypy_request_complete',
+                'Total requests from whom request object was successfully received',
+            )
+            request_complete.add_metric(
+                ['proxypy_request_complete'],
                 self.storage.get_counter('request_complete'),
             )
-            counter.add_metric(
+            yield request_complete
+
+            work_finished = CounterMetricFamily(
+                'proxypy_work_finished',
+                'Total number of work finished by proxy.py core',
+            )
+            work_finished.add_metric(
                 ['work_finished'],
                 self.storage.get_counter('work_finished'),
             )
-            yield counter
+            yield work_finished
 
     return MetricsCollector(metrics_lock)
 

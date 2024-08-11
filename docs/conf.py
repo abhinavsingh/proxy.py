@@ -282,7 +282,6 @@ nitpick_ignore = [
     (_any_role, 'multiprocessing.Manager'),
     (_any_role, 'proxy.core.base.tcp_upstream.TcpUpstreamConnectionHandler'),
     (_any_role, 'work_klass'),
-    (_any_role, 'proxy.http.server.metrics.get_collector'),
     (_py_class_role, '_asyncio.Task'),
     (_py_class_role, 'asyncio.events.AbstractEventLoop'),
     (_py_class_role, 'BaseListener'),
