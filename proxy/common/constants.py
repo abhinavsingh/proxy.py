@@ -137,6 +137,8 @@ DEFAULT_NUM_WORKERS = 0
 DEFAULT_OPEN_FILE_LIMIT = 1024
 DEFAULT_PAC_FILE = None
 DEFAULT_PAC_FILE_URL_PATH = b'/'
+DEFAULT_ENABLE_METRICS = False
+DEFAULT_METRICS_URL_PATH = b"/metrics"
 DEFAULT_PID_FILE = None
 DEFAULT_PORT_FILE = None
 DEFAULT_PLUGINS: List[Any] = []
@@ -172,6 +174,7 @@ DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
 )
 DEFAULT_CACHE_REQUESTS = False
 DEFAULT_CACHE_BY_CONTENT_TYPE = False
+DEFAULT_METRICS_DIRECTORY_PATH = os.path.join(DEFAULT_DATA_DIRECTORY_PATH, "metrics")
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
@@ -190,6 +193,7 @@ PLUGIN_PAC_FILE = 'proxy.http.server.HttpWebServerPacFilePlugin'
 PLUGIN_DEVTOOLS_PROTOCOL = 'proxy.http.inspector.devtools.DevtoolsProtocolPlugin'
 PLUGIN_INSPECT_TRAFFIC = 'proxy.http.inspector.inspect_traffic.InspectTrafficPlugin'
 PLUGIN_WEBSOCKET_TRANSPORT = 'proxy.http.websocket.transport.WebSocketTransport'
+PLUGIN_METRICS = "proxy.http.server.MetricsWebServerPlugin"
 
 PY2_DEPRECATION_MESSAGE = '''DEPRECATION: proxy.py no longer supports Python 2.7.  Kindly upgrade to Python 3+. '
                 'If for some reasons you cannot upgrade, use'

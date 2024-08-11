@@ -43,6 +43,7 @@ from .common.constants import (
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
     DEFAULT_SSH_LISTENER_KLASS,
 )
+from .core.event.metrics import MetricsEventSubscriber
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -204,6 +205,7 @@ class Proxy:
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
         self.ssh_tunnel_listener: Optional[BaseSshTunnelListener] = None
+        self.metrics_subscriber: Optional[MetricsEventSubscriber] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -221,9 +223,6 @@ class Proxy:
         #
         # TODO: Python shell within running proxy.py environment
         # https://github.com/abhinavsingh/proxy.py/discussions/1021
-        #
-        # TODO: Near realtime resource / stats monitoring
-        # https://github.com/abhinavsingh/proxy.py/discussions/1023
         #
         self._write_pid_file()
         # We setup listeners first because of flags.port override
@@ -259,9 +258,9 @@ class Proxy:
             logger.info('Core Event enabled')
             self.event_manager = EventManager()
             self.event_manager.setup()
-        event_queue = self.event_manager.queue \
-            if self.event_manager is not None \
-            else None
+        event_queue = (
+            self.event_manager.queue if self.event_manager is not None else None
+        )
         # Setup remote executors only if
         # --local-executor mode isn't enabled.
         if self.remote_executors_enabled:
@@ -287,6 +286,12 @@ class Proxy:
                 flags=self.flags,
                 **self.opts,
             )
+        if event_queue is not None and self.flags.enable_metrics:
+            self.metrics_subscriber = MetricsEventSubscriber(
+                event_queue,
+                self.flags.metrics_lock,
+            )
+            self.metrics_subscriber.setup()
         # TODO: May be close listener fd as we don't need it now
         if threading.current_thread() == threading.main_thread():
             self._register_signals()
@@ -309,6 +314,8 @@ class Proxy:
         return tunnel
 
     def shutdown(self) -> None:
+        if self.metrics_subscriber is not None:
+            self.metrics_subscriber.shutdown()
         if self.flags.enable_ssh_tunnel:
             assert self.ssh_tunnel_listener is not None
             self.ssh_tunnel_listener.shutdown()

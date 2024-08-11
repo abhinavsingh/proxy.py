@@ -1,0 +1,2 @@
+prometheus_client==0.17.1; python_version < '3.8'
+prometheus_client==0.20.0; python_version >= '3.8'
