@@ -51,19 +51,6 @@ class MetricsStorage:
 
     def __init__(self) -> None:
         self._lock = Lock()
-        with self._lock:
-            os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
-            self._cleanup()
-
-    def _cleanup(self) -> None:
-        patterns = ['*.counter', '*.gauge']
-        for pattern in patterns:
-            files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
-            for file_path in files:
-                try:
-                    os.remove(file_path)
-                except OSError as e:
-                    print(f'Error deleting file {file_path}: {e}')
 
     def get_counter(self, name: str, default: float = 0.0) -> float:
         with self._lock:
@@ -104,14 +91,13 @@ class MetricsStorage:
         with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
-
 storage = MetricsStorage()
 
 
 class MetricsCollector(Collector):
+
     def collect(self):
         """Serves from aggregates metrics managed by MetricsEventSubscriber."""
-        print('Collecting', '*' * 10)
         counter = CounterMetricFamily(
             'proxypy_counter',
             'Total count of proxypy events',
@@ -145,7 +131,19 @@ class MetricsEventSubscriber:
             callback=MetricsEventSubscriber.callback,
         )
 
+    def _setup_metrics_directory(self) -> None:
+        os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
+        patterns = ["*.counter", "*.gauge"]
+        for pattern in patterns:
+            files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
+            for file_path in files:
+                try:
+                    os.remove(file_path)
+                except OSError as e:
+                    print(f"Error deleting file {file_path}: {e}")
+
     def __enter__(self) -> 'MetricsEventSubscriber':
+        self._setup_metrics_directory()
         self.subscriber.setup()
         return self
 
@@ -154,7 +152,6 @@ class MetricsEventSubscriber:
 
     @staticmethod
     def callback(event: Dict[str, Any]) -> None:
-        print(event)
         if event['event_name'] == eventNames.WORK_STARTED:
             storage.incr_counter('work_started')
         elif event['event_name'] == eventNames.REQUEST_COMPLETE:
@@ -197,13 +194,13 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
         status, headers, output = _bake_output(
             registry,
             (
-                request.header(b'Accept').decode()
-                if request.has_header(b'Accept')
-                else '*/*'
+                request.header(b"Accept").decode()
+                if request.has_header(b"Accept")
+                else "*/*"
             ),
             (
-                request.header(b'Accept-Encoding').decode()
-                if request.has_header(b'Accept-Encoding')
+                request.header(b"Accept-Encoding").decode()
+                if request.has_header(b"Accept-Encoding")
                 else None
             ),
             parse_qs(urlparse(request.path).query),
