@@ -124,7 +124,7 @@ def get_collector(metrics_lock: Lock) -> 'Collector':
 
             request_complete = CounterMetricFamily(
                 'proxypy_request_complete',
-                'Total requests from whom request object was successfully received',
+                'Total requests that sent a request successfully',
             )
             request_complete.add_metric(
                 ['proxypy_request_complete'],

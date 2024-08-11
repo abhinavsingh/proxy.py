@@ -17,11 +17,13 @@ from typing import Any, Dict, List, Tuple, Union, Pattern, Optional
 from .plugin import HttpWebServerBasePlugin
 from ..parser import HttpParser, httpParserTypes
 from ..plugin import HttpProtocolHandlerPlugin
+from ..methods import httpMethods
 from .protocols import httpProtocolTypes
 from ..exception import HttpProtocolException
 from ..protocols import httpProtocols
 from ..responses import NOT_FOUND_RESPONSE_PKT
 from ..websocket import WebsocketFrame, websocketOpcodes
+from ...core.event import eventNames
 from ...common.flag import flags
 from ...common.types import Readables, Writables, Descriptors
 from ...common.utils import text_, build_websocket_handshake_response
@@ -139,6 +141,7 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self.switched_protocol = httpProtocolTypes.WEBSOCKET
 
     def on_request_complete(self) -> Union[socket.socket, bool]:
+        self.emit_request_complete()
         path = self.request.path or b'/'
         teardown = self._try_route(path)
         if teardown:
@@ -220,8 +223,8 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
         self._response_size += sum(len(c) for c in chunk)
         return chunk
 
-    def on_client_connection_close(self) -> None:
-        context = {
+    def _context(self) -> Dict[str, Any]:
+        return {
             'client_ip': None if not self.client.addr else self.client.addr[0],
             'client_port': None if not self.client.addr else self.client.addr[1],
             'connection_time_ms': '%.2f' % ((time.time() - self.start_time) * 1000),
@@ -249,6 +252,9 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
             # 'response_code': text_(self.response.code),
             # 'response_reason': text_(self.response.reason),
         }
+
+    def on_client_connection_close(self) -> None:
+        context = self._context()
         log_handled = False
         if self.route:
             # May be merge on_client_connection_close and on_access_log???
@@ -303,4 +309,34 @@ class HttpWebServerPlugin(HttpProtocolHandlerPlugin):
                 self.flags.static_server_dir + path,
                 self.flags.min_compression_length,
             ),
+        )
+
+    def emit_request_complete(self) -> None:
+        if not self.flags.enable_events:
+            return
+        assert self.request.port and self.event_queue
+        self.event_queue.publish(
+            request_id=self.uid,
+            event_name=eventNames.REQUEST_COMPLETE,
+            event_payload={
+                'url': 'http://%s%s'
+                % (
+                    text_(self.request.header(b'host')),
+                    text_(self.request.path),
+                ),
+                'method': text_(self.request.method),
+                'headers': (
+                    {}
+                    if not self.request.headers
+                    else {
+                        text_(k): text_(v[1]) for k, v in self.request.headers.items()
+                    }
+                ),
+                'body': (
+                    text_(self.request.body, errors='ignore')
+                    if self.request.method == httpMethods.POST
+                    else None
+                ),
+            },
+            publisher_id=self.__class__.__qualname__,
         )
