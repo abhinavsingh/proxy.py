@@ -43,7 +43,7 @@ from .common.constants import (
     DEFAULT_ENABLE_DASHBOARD, DEFAULT_ENABLE_SSH_TUNNEL,
     DEFAULT_SSH_LISTENER_KLASS,
 )
-from .http.server.metrics import MetricsEventSubscriber
+from .core.event.metrics import MetricsEventSubscriber
 
 
 if TYPE_CHECKING:   # pragma: no cover
