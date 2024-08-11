@@ -52,37 +52,49 @@ def get_collector(metrics_lock: Lock) -> Any:
         def collect(self) -> Generator[Metric, None, None]:
             """Serves from aggregates metrics managed by MetricsEventSubscriber."""
             # pylint: disable=import-outside-toplevel
-            from prometheus_client.core import CounterMetricFamily
+            from prometheus_client.core import (
+                GaugeMetricFamily, CounterMetricFamily,
+            )
+
+            started = self.storage.get_counter('work_started')
+            finished = self.storage.get_counter('work_finished')
 
             work_started = CounterMetricFamily(
                 'proxypy_work_started',
-                'Total number of work accepted and started by proxy.py core',
+                'Total work accepted and started by proxy.py core',
             )
             work_started.add_metric(
                 ['proxypy_work_started'],
-                self.storage.get_counter('work_started'),
+                started,
             )
             yield work_started
 
             request_complete = CounterMetricFamily(
-                'proxypy_request_complete',
-                'Total requests that sent a request successfully',
+                'proxypy_work_request_received',
+                'Total work finished sending initial request',
             )
             request_complete.add_metric(
-                ['proxypy_request_complete'],
+                ['proxypy_work_request_received'],
                 self.storage.get_counter('request_complete'),
             )
             yield request_complete
 
             work_finished = CounterMetricFamily(
                 'proxypy_work_finished',
-                'Total number of work finished by proxy.py core',
+                'Total work finished by proxy.py core',
             )
             work_finished.add_metric(
                 ['work_finished'],
-                self.storage.get_counter('work_finished'),
+                finished,
             )
             yield work_finished
+
+            ongoing_work = GaugeMetricFamily(
+                'proxypy_work_active',
+                'Total work under active execution',
+                value=started - finished,
+            )
+            yield ongoing_work
 
     return MetricsCollector(metrics_lock)
 
