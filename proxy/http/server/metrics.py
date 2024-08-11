@@ -10,7 +10,7 @@
 """
 import os
 import glob
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Generator
+from typing import Any, Dict, List, Tuple, Generator, cast
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from multiprocessing.synchronize import Lock
@@ -25,10 +25,6 @@ from ...common.constants import (
     DEFAULT_ENABLE_METRICS, DEFAULT_METRICS_URL_PATH,
     DEFAULT_METRICS_DIRECTORY_PATH,
 )
-
-
-if TYPE_CHECKING:
-    from prometheus_client.registry import Collector
 
 
 flags.add_argument(
@@ -92,12 +88,7 @@ class MetricsStorage:
             g.write(str(value))
 
 
-def get_collector(metrics_lock: Lock) -> 'Collector':
-    """
-    Returns an instance of the `Collector` class.
-
-    :rtype: prometheus_client.core.Collector
-    """
+def get_collector(metrics_lock: Lock) -> Any:
     # pylint: disable=import-outside-toplevel
     from prometheus_client.core import Metric
     from prometheus_client.registry import Collector
@@ -195,10 +186,11 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # pylint: disable=import-outside-toplevel
         from prometheus_client.core import CollectorRegistry
+        from prometheus_client.registry import Collector
 
         super().__init__(*args, **kwargs)
         self.registry = CollectorRegistry()
-        self.registry.register(get_collector(self.flags.metrics_lock))
+        self.registry.register(cast(Collector, get_collector(self.flags.metrics_lock)))
 
     def routes(self) -> List[Tuple[int, str]]:
         if self.flags.metrics_path:
