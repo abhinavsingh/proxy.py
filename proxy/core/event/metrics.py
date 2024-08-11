@@ -39,7 +39,7 @@ class MetricsStorage:
 
     def _incr_counter(self, name: str, by: float = 1.0) -> None:
         current = self._get_counter(name)
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
         Path(path).write_text(str(current + by), encoding='utf-8')
 
     def get_gauge(self, name: str) -> float:
@@ -58,7 +58,7 @@ class MetricsStorage:
             self._set_gauge(name, value)
 
     def _set_gauge(self, name: str, value: float) -> None:
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.gauge')
         with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
@@ -77,24 +77,19 @@ class MetricsEventSubscriber:
             callback=lambda event: MetricsEventSubscriber.callback(self.storage, event),
         )
 
-    def _setup_metrics_directory(self) -> None:
-        os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
-        patterns = ['*.counter', '*.gauge']
-        for pattern in patterns:
-            files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
-            for file_path in files:
-                try:
-                    os.remove(file_path)
-                except OSError as e:
-                    print(f'Error deleting file {file_path}: {e}')
-
-    def __enter__(self) -> 'MetricsEventSubscriber':
+    def setup(self) -> None:
         self._setup_metrics_directory()
         self.subscriber.setup()
+
+    def shutdown(self) -> None:
+        self.subscriber.shutdown()
+
+    def __enter__(self) -> 'MetricsEventSubscriber':
+        self.setup()
         return self
 
     def __exit__(self, *args: Any) -> None:
-        self.subscriber.shutdown()
+        self.shutdown()
 
     @staticmethod
     def callback(storage: MetricsStorage, event: Dict[str, Any]) -> None:
@@ -106,3 +101,14 @@ class MetricsEventSubscriber:
             storage.incr_counter('work_finished')
         else:
             print('Unhandled', event)
+
+    def _setup_metrics_directory(self) -> None:
+        os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
+        patterns = ['*.counter', '*.gauge']
+        for pattern in patterns:
+            files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
+            for file_path in files:
+                try:
+                    os.remove(file_path)
+                except OSError as e:
+                    print(f'Error deleting file {file_path}: {e}')

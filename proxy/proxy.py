@@ -205,6 +205,7 @@ class Proxy:
         self.acceptors: Optional[AcceptorPool] = None
         self.event_manager: Optional[EventManager] = None
         self.ssh_tunnel_listener: Optional[BaseSshTunnelListener] = None
+        self.metrics_subscriber: Optional[MetricsEventSubscriber] = None
 
     def __enter__(self) -> 'Proxy':
         self.setup()
@@ -222,9 +223,6 @@ class Proxy:
         #
         # TODO: Python shell within running proxy.py environment
         # https://github.com/abhinavsingh/proxy.py/discussions/1021
-        #
-        # TODO: Near realtime resource / stats monitoring
-        # https://github.com/abhinavsingh/proxy.py/discussions/1023
         #
         self._write_pid_file()
         # We setup listeners first because of flags.port override
@@ -288,6 +286,12 @@ class Proxy:
                 flags=self.flags,
                 **self.opts,
             )
+        if event_queue is not None and self.flags.enable_metrics:
+            self.metrics_subscriber = MetricsEventSubscriber(
+                event_queue,
+                self.flags.metrics_lock,
+            )
+            self.metrics_subscriber.setup()
         # TODO: May be close listener fd as we don't need it now
         if threading.current_thread() == threading.main_thread():
             self._register_signals()
@@ -310,6 +314,8 @@ class Proxy:
         return tunnel
 
     def shutdown(self) -> None:
+        if self.metrics_subscriber is not None:
+            self.metrics_subscriber.shutdown()
         if self.flags.enable_ssh_tunnel:
             assert self.ssh_tunnel_listener is not None
             self.ssh_tunnel_listener.shutdown()
@@ -389,12 +395,7 @@ def sleep_loop(p: Optional[Proxy] = None) -> None:
 
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts) as p:
-        event_queue = p.event_manager.queue if p.event_manager is not None else None
-        if event_queue is not None and p.flags.enable_metrics:
-            with MetricsEventSubscriber(event_queue, p.flags.metrics_lock):
-                sleep_loop(p)
-        else:
-            sleep_loop(p)
+        sleep_loop(p)
 
 
 def entry_point() -> None:
