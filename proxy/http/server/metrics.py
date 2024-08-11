@@ -8,10 +8,15 @@
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
 """
+import os
+import glob
 from typing import Any, Dict, List, Tuple
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from multiprocessing import Lock
+from multiprocessing.sharedctypes import Value, Synchronized
 
-from prometheus_client.core import REGISTRY, CounterMetricFamily
+from prometheus_client.core import CollectorRegistry, CounterMetricFamily
 from prometheus_client.registry import Collector
 from prometheus_client.exposition import _bake_output
 
@@ -23,6 +28,7 @@ from ...common.flag import flags
 from ...common.utils import text_, build_http_response
 from ...common.constants import (
     DEFAULT_ENABLE_METRICS, DEFAULT_METRICS_URL_PATH,
+    DEFAULT_METRICS_DIRECTORY_PATH,
 )
 
 
@@ -40,6 +46,134 @@ flags.add_argument(
     help='Default: %s. Web server path to serve proxy.py metrics.'
     % text_(DEFAULT_METRICS_URL_PATH),
 )
+
+
+work_started: Synchronized = Value("i", 0)  # type: ignore[assignment]
+request_complete: Synchronized = Value("i", 0)  # type: ignore[assignment]
+work_finished: Synchronized = Value("i", 0)  # type: ignore[assignment]
+
+
+class MetricsStorage:
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        with self._lock:
+            os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
+            self._cleanup()
+
+    def _cleanup(self) -> None:
+        patterns = ["*.counter", "*.gauge"]
+        for pattern in patterns:
+            files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
+            for file_path in files:
+                try:
+                    os.remove(file_path)
+                except OSError as e:
+                    print(f"Error deleting file {file_path}: {e}")
+
+    def get_counter(self, name: str, default: float = 0.0) -> float:
+        with self._lock:
+            return self._get_counter(name, default)
+
+    def _get_counter(self, name: str, default: float = 0.0) -> float:
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
+        if not os.path.exists(path):
+            return default
+        return float(Path(path).read_text(encoding="utf-8").strip())
+
+    def incr_counter(self, name: str, by: float = 1.0) -> None:
+        with self._lock:
+            self._incr_counter(name, by)
+
+    def _incr_counter(self, name: str, by: float = 1.0) -> None:
+        current = self._get_counter(name)
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
+        Path(path).write_text(str(current + by), encoding="utf-8")
+
+    def get_gauge(self, name: str, default: float = 0.0) -> float:
+        with self._lock:
+            return self._get_gauge(name, default)
+
+    def _get_gauge(self, name: str, default: float = 0.0) -> float:
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
+        if not os.path.exists(path):
+            return default
+        return float(Path(path).read_text(encoding="utf-8").strip())
+
+    def set_gauge(self, name: str, value: float) -> None:
+        """Stores a single values."""
+        with self._lock:
+            self._set_gauge(name, value)
+
+    def _set_gauge(self, name: str, value: float) -> None:
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
+        with open(path, "w", encoding="utf-8") as g:
+            g.write(str(value))
+
+
+storage = MetricsStorage()
+
+
+class MetricsCollector(Collector):
+    def collect(self):
+        """Serves from aggregates metrics managed by MetricsEventSubscriber."""
+        print("Collecting", "*" * 10)
+        counter = CounterMetricFamily(
+            "proxypy_counter",
+            "Total count of proxypy events",
+            labels=["proxypy"],
+        )
+        counter.add_metric(
+            ["work_started"],
+            storage.get_counter("work_started"),
+        )
+        counter.add_metric(
+            ["request_complete"],
+            storage.get_counter("request_complete"),
+        )
+        counter.add_metric(
+            ["work_finished"],
+            storage.get_counter("work_finished"),
+        )
+        yield counter
+
+
+class MetricsEventSubscriber:
+
+    def __init__(self, event_queue: EventQueue) -> None:
+        """Aggregates metric events pushed by proxy.py core and plugins.
+
+        1) Metrics are kept in-memory
+        2) Collection must be done via MetricsWebServerPlugin endpoint
+        """
+        self.subscriber = EventSubscriber(
+            event_queue,
+            callback=MetricsEventSubscriber.callback,
+        )
+
+    def __enter__(self) -> "MetricsEventSubscriber":
+        self.subscriber.setup()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        self.subscriber.shutdown()
+
+    @staticmethod
+    def callback(event: Dict[str, Any]) -> None:
+        print(event)
+        if event["event_name"] == eventNames.WORK_STARTED:
+            storage.incr_counter("work_started")
+        elif event["event_name"] == eventNames.REQUEST_COMPLETE:
+            storage.incr_counter("request_complete")
+        elif event["event_name"] == eventNames.WORK_FINISHED:
+            storage.incr_counter("work_finished")
+        else:
+            print("Unhandled", event)
+
+
+registry = CollectorRegistry()
+collector = MetricsCollector()
+registry.register(collector)
 
 
 class MetricsWebServerPlugin(HttpWebServerBasePlugin):
@@ -67,15 +201,15 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         status, headers, output = _bake_output(
-            REGISTRY,
+            registry,
             (
-                request.header(b'Accept').decode()
-                if request.has_header(b'Accept')
-                else '*/*'
+                request.header(b"Accept").decode()
+                if request.has_header(b"Accept")
+                else "*/*"
             ),
             (
-                request.header(b'Accept-Encoding').decode()
-                if request.has_header(b'Accept-Encoding')
+                request.header(b"Accept-Encoding").decode()
+                if request.has_header(b"Accept-Encoding")
                 else None
             ),
             parse_qs(urlparse(request.path).query),
@@ -89,61 +223,3 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
             body=output,
         )
         self.client.queue(memoryview(response))
-
-
-class MetricsCollector(Collector):
-    def __init__(self) -> None:
-        self.work_started = 0
-        self.request_complete = 0
-        self.work_finished = 0
-
-    def collect(self):
-        """Serves from aggregates metrics managed by MetricsEventSubscriber."""
-        counter = CounterMetricFamily(
-            'proxypy_counter',
-            'Total count of proxypy events',
-            labels=['proxypy'],
-        )
-        counter.add_metric(['work_started'], self.work_started)
-        counter.add_metric(['request_complete'], self.request_complete)
-        counter.add_metric(['work_finished'], self.work_finished)
-        yield counter
-
-
-class MetricsEventSubscriber:
-
-    def __init__(self, event_queue: EventQueue) -> None:
-        """Aggregates metric events pushed by proxy.py core and plugins.
-
-        1) Metrics are kept in-memory
-        2) Collection must be done via MetricsWebServerPlugin endpoint
-        """
-        self.registry = REGISTRY
-        self.collector = MetricsCollector()
-        self.subscriber = EventSubscriber(
-            event_queue,
-            callback=lambda event: MetricsEventSubscriber.callback(
-                self.collector,
-                event,
-            ),
-        )
-
-    def __enter__(self) -> 'MetricsEventSubscriber':
-        self.subscriber.setup()
-        self.registry.register(self.collector)
-        return self
-
-    def __exit__(self, *args: Any) -> None:
-        self.subscriber.shutdown()
-
-    @staticmethod
-    def callback(collector: MetricsCollector, event: Dict[str, Any]) -> None:
-        print(event)
-        if event['event_name'] == eventNames.WORK_STARTED:
-            collector.work_started += 1
-        elif event['event_name'] == eventNames.REQUEST_COMPLETE:
-            collector.request_complete += 1
-        elif event['event_name'] == eventNames.WORK_FINISHED:
-            collector.work_finished += 1
-        else:
-            print('Unhandled', event)

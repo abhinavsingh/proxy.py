@@ -174,6 +174,7 @@ DEFAULT_CACHE_DIRECTORY_PATH = os.path.join(
 )
 DEFAULT_CACHE_REQUESTS = False
 DEFAULT_CACHE_BY_CONTENT_TYPE = False
+DEFAULT_METRICS_DIRECTORY_PATH = os.path.join(DEFAULT_DATA_DIRECTORY_PATH, "metrics")
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
