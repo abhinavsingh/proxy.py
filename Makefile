@@ -105,6 +105,7 @@ lib-dep:
 		-r requirements-testing.txt \
 		-r requirements-release.txt \
 		-r requirements-tunnel.txt && \
+		-r requirements-metrics.txt && \
 	pip install "setuptools>=42"
 
 lib-pre-commit:

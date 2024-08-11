@@ -37,5 +37,6 @@ python:
     path: .
   - requirements: requirements-tunnel.txt
   - requirements: docs/requirements.txt
+  - requirements: requirements-metrics.txt
 
 ...
