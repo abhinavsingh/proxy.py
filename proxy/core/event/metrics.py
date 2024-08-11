@@ -31,7 +31,7 @@ class MetricsStorage:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
         if not os.path.exists(path):
             return 0
-        return float(Path(path).read_text(encoding="utf-8").strip())
+        return float(Path(path).read_text(encoding='utf-8').strip())
 
     def incr_counter(self, name: str, by: float = 1.0) -> None:
         with self._lock:
@@ -40,7 +40,7 @@ class MetricsStorage:
     def _incr_counter(self, name: str, by: float = 1.0) -> None:
         current = self._get_counter(name)
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
-        Path(path).write_text(str(current + by), encoding="utf-8")
+        Path(path).write_text(str(current + by), encoding='utf-8')
 
     def get_gauge(self, name: str) -> float:
         with self._lock:
@@ -50,7 +50,7 @@ class MetricsStorage:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
         if not os.path.exists(path):
             return 0
-        return float(Path(path).read_text(encoding="utf-8").strip())
+        return float(Path(path).read_text(encoding='utf-8').strip())
 
     def set_gauge(self, name: str, value: float) -> None:
         """Stores a single values."""
@@ -59,7 +59,7 @@ class MetricsStorage:
 
     def _set_gauge(self, name: str, value: float) -> None:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
-        with open(path, "w", encoding="utf-8") as g:
+        with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
 
@@ -79,7 +79,7 @@ class MetricsEventSubscriber:
 
     def _setup_metrics_directory(self) -> None:
         os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
-        patterns = ["*.counter", "*.gauge"]
+        patterns = ['*.counter', '*.gauge']
         for pattern in patterns:
             files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
             for file_path in files:
@@ -88,7 +88,7 @@ class MetricsEventSubscriber:
                 except OSError as e:
                     print(f"Error deleting file {file_path}: {e}")
 
-    def __enter__(self) -> "MetricsEventSubscriber":
+    def __enter__(self) -> 'MetricsEventSubscriber':
         self._setup_metrics_directory()
         self.subscriber.setup()
         return self
@@ -98,11 +98,11 @@ class MetricsEventSubscriber:
 
     @staticmethod
     def callback(storage: MetricsStorage, event: Dict[str, Any]) -> None:
-        if event["event_name"] == eventNames.WORK_STARTED:
-            storage.incr_counter("work_started")
-        elif event["event_name"] == eventNames.REQUEST_COMPLETE:
-            storage.incr_counter("request_complete")
-        elif event["event_name"] == eventNames.WORK_FINISHED:
-            storage.incr_counter("work_finished")
+        if event['event_name'] == eventNames.WORK_STARTED:
+            storage.incr_counter('work_started')
+        elif event['event_name'] == eventNames.REQUEST_COMPLETE:
+            storage.incr_counter('request_complete')
+        elif event['event_name'] == eventNames.WORK_FINISHED:
+            storage.incr_counter('work_finished')
         else:
-            print("Unhandled", event)
+            print('Unhandled', event)
