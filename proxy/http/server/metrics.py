@@ -10,14 +10,10 @@
 """
 import os
 import glob
-from typing import Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from multiprocessing.synchronize import Lock
-
-from prometheus_client.core import CollectorRegistry, CounterMetricFamily
-from prometheus_client.registry import Collector
-from prometheus_client.exposition import _bake_output
 
 from .plugin import HttpWebServerBasePlugin
 from ..parser import HttpParser
@@ -29,6 +25,10 @@ from ...common.constants import (
     DEFAULT_ENABLE_METRICS, DEFAULT_METRICS_URL_PATH,
     DEFAULT_METRICS_DIRECTORY_PATH,
 )
+
+
+if TYPE_CHECKING:
+    from prometheus_client.registry import Collector
 
 
 flags.add_argument(
@@ -91,31 +91,40 @@ class MetricsStorage:
             g.write(str(value))
 
 
-class MetricsCollector(Collector):
+def get_collector(metrics_lock: Lock) -> 'Collector':
+    # pylint: disable=import-outside-toplevel
+    from prometheus_client.registry import Collector
 
-    def __init__(self, metrics_lock: Lock) -> None:
-        self.storage = MetricsStorage(metrics_lock)
+    class MetricsCollector(Collector):
 
-    def collect(self):
-        """Serves from aggregates metrics managed by MetricsEventSubscriber."""
-        counter = CounterMetricFamily(
-            'proxypy_counter',
-            'Total count of proxypy events',
-            labels=['proxypy'],
-        )
-        counter.add_metric(
-            ['work_started'],
-            self.storage.get_counter('work_started'),
-        )
-        counter.add_metric(
-            ['request_complete'],
-            self.storage.get_counter('request_complete'),
-        )
-        counter.add_metric(
-            ['work_finished'],
-            self.storage.get_counter('work_finished'),
-        )
-        yield counter
+        def __init__(self, metrics_lock: Lock) -> None:
+            self.storage = MetricsStorage(metrics_lock)
+
+        def collect(self):
+            """Serves from aggregates metrics managed by MetricsEventSubscriber."""
+            # pylint: disable=import-outside-toplevel
+            from prometheus_client.core import CounterMetricFamily
+
+            counter = CounterMetricFamily(
+                'proxypy_counter',
+                'Total count of proxypy events',
+                labels=['proxypy'],
+            )
+            counter.add_metric(
+                ['work_started'],
+                self.storage.get_counter('work_started'),
+            )
+            counter.add_metric(
+                ['request_complete'],
+                self.storage.get_counter('request_complete'),
+            )
+            counter.add_metric(
+                ['work_finished'],
+                self.storage.get_counter('work_finished'),
+            )
+            yield counter
+
+    return MetricsCollector(metrics_lock)
 
 
 class MetricsEventSubscriber:
@@ -123,7 +132,7 @@ class MetricsEventSubscriber:
     def __init__(self, event_queue: EventQueue, metrics_lock: Lock) -> None:
         """Aggregates metric events pushed by proxy.py core and plugins.
 
-        1) Metrics are kept in-memory
+        1) Metrics are stored and managed by multiprocessing safe MetricsStorage
         2) Collection must be done via MetricsWebServerPlugin endpoint
         """
         self.storage = MetricsStorage(metrics_lock)
@@ -166,9 +175,13 @@ class MetricsEventSubscriber:
 class MetricsWebServerPlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        # pylint: disable=import-outside-toplevel
+        from prometheus_client.core import CollectorRegistry
+        from prometheus_client.registry import Collector
+
         super().__init__(*args, **kwargs)
         self.registry = CollectorRegistry()
-        self.registry.register(MetricsCollector(self.flags.metrics_lock))
+        self.registry.register(get_collector(self.flags.metrics_lock))
 
     def routes(self) -> List[Tuple[int, str]]:
         if self.flags.metrics_path:
@@ -189,6 +202,9 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
         return []  # pragma: no cover
 
     def handle_request(self, request: HttpParser) -> None:
+        # pylint: disable=import-outside-toplevel
+        from prometheus_client.exposition import _bake_output
+
         status, headers, output = _bake_output(
             self.registry,
             (
