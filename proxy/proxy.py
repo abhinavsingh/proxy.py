@@ -389,9 +389,7 @@ def sleep_loop(p: Optional[Proxy] = None) -> None:
 
 def main(**opts: Any) -> None:
     with Proxy(sys.argv[1:], **opts) as p:
-        event_queue = event_queue = (
-            p.event_manager.queue if p.event_manager is not None else None
-        )
+        event_queue = p.event_manager.queue if p.event_manager is not None else None
         if event_queue is not None and p.flags.enable_metrics:
             with MetricsEventSubscriber(event_queue, p.flags.metrics_lock):
                 sleep_loop(p)
