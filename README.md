@@ -106,6 +106,7 @@
 - [Run Dashboard](#run-dashboard)
   - [Inspect Traffic](#inspect-traffic)
 - [Chrome DevTools Protocol](#chrome-devtools-protocol)
+- [Prometheus Metrics](#prometheus-metrics)
 - [Frequently Asked Questions](#frequently-asked-questions)
   - [Deploying proxy.py in production](#deploying-proxypy-in-production)
     - [What not to do?](#what-not-to-do)
@@ -2016,6 +2017,13 @@ start `proxy.py` as:
 
 Now point your CDT instance to `ws://localhost:8899/devtools`.
 
+# Prometheus Metrics
+
+1) Start `proxy.py` with `--enable-metrics` flag to internal metrics via a prometheus endpoint
+2) Configure your `prometheus.yaml` to scrape from `/metrics` endpoint e.g. [http://localhost:8899/metrics](http://localhost:8899/metrics)
+3) Customize metrics path by using `--metrics-path` flag
+4) NOTE that `--enable-metrics` internally also `--enable-events` and the web server plugin
+
 # Frequently Asked Questions
 
 ## Deploying proxy.py in production
@@ -2548,7 +2556,8 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
-          [--enable-reverse-proxy] [--pac-file PAC_FILE]
+          [--enable-reverse-proxy] [--enable-metrics]
+          [--metrics-path METRICS_PATH] [--pac-file PAC_FILE]
           [--pac-file-url-path PAC_FILE_URL_PATH]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
           [--filtered-upstream-hosts FILTERED_UPSTREAM_HOSTS]
@@ -2556,7 +2565,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.5
+proxy.py v2.4.6.dev27+g975b6b68.d20240811
 
 options:
   -h, --help            show this help message and exit
@@ -2725,6 +2734,10 @@ options:
                         response that will be compressed (gzipped).
   --enable-reverse-proxy
                         Default: False. Whether to enable reverse proxy core.
+  --enable-metrics      Default: False. Enables metrics.
+  --metrics-path METRICS_PATH
+                        Default: /metrics. Web server path to serve proxy.py
+                        metrics.
   --pac-file PAC_FILE   A file (Proxy Auto Configuration) or string to serve
                         when the server receives a direct file request. Using
                         this option enables proxy.HttpWebServerPlugin.
