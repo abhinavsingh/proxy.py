@@ -13,7 +13,7 @@ import glob
 from typing import Any, Dict, List, Tuple
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-from multiprocessing import Lock
+from multiprocessing.synchronize import Lock
 
 from prometheus_client.core import CollectorRegistry, CounterMetricFamily
 from prometheus_client.registry import Collector
@@ -46,11 +46,10 @@ flags.add_argument(
     % text_(DEFAULT_METRICS_URL_PATH),
 )
 
-
 class MetricsStorage:
 
-    def __init__(self) -> None:
-        self._lock = Lock()
+    def __init__(self, lock: Lock) -> None:
+        self._lock = lock
 
     def get_counter(self, name: str, default: float = 0.0) -> float:
         with self._lock:
@@ -91,10 +90,11 @@ class MetricsStorage:
         with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
-storage = MetricsStorage()
-
 
 class MetricsCollector(Collector):
+
+    def __init__(self, metrics_lock: Lock) -> None:
+        self.storage = MetricsStorage(metrics_lock)
 
     def collect(self):
         """Serves from aggregates metrics managed by MetricsEventSubscriber."""
@@ -105,42 +105,43 @@ class MetricsCollector(Collector):
         )
         counter.add_metric(
             ['work_started'],
-            storage.get_counter('work_started'),
+            self.storage.get_counter('work_started'),
         )
         counter.add_metric(
             ['request_complete'],
-            storage.get_counter('request_complete'),
+            self.storage.get_counter('request_complete'),
         )
         counter.add_metric(
             ['work_finished'],
-            storage.get_counter('work_finished'),
+            self.storage.get_counter('work_finished'),
         )
         yield counter
 
 
 class MetricsEventSubscriber:
 
-    def __init__(self, event_queue: EventQueue) -> None:
+    def __init__(self, event_queue: EventQueue, metrics_lock: Lock) -> None:
         """Aggregates metric events pushed by proxy.py core and plugins.
 
         1) Metrics are kept in-memory
         2) Collection must be done via MetricsWebServerPlugin endpoint
         """
+        self.storage = MetricsStorage(metrics_lock)
         self.subscriber = EventSubscriber(
             event_queue,
-            callback=MetricsEventSubscriber.callback,
+            callback=lambda event: MetricsEventSubscriber.callback(self.storage, event),
         )
 
     def _setup_metrics_directory(self) -> None:
         os.makedirs(DEFAULT_METRICS_DIRECTORY_PATH, exist_ok=True)
-        patterns = ["*.counter", "*.gauge"]
+        patterns = ['*.counter', '*.gauge']
         for pattern in patterns:
             files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
             for file_path in files:
                 try:
                     os.remove(file_path)
                 except OSError as e:
-                    print(f"Error deleting file {file_path}: {e}")
+                    print(f'Error deleting file {file_path}: {e}')
 
     def __enter__(self) -> 'MetricsEventSubscriber':
         self._setup_metrics_directory()
@@ -151,7 +152,7 @@ class MetricsEventSubscriber:
         self.subscriber.shutdown()
 
     @staticmethod
-    def callback(event: Dict[str, Any]) -> None:
+    def callback(storage: MetricsStorage, event: Dict[str, Any]) -> None:
         if event['event_name'] == eventNames.WORK_STARTED:
             storage.incr_counter('work_started')
         elif event['event_name'] == eventNames.REQUEST_COMPLETE:
@@ -162,15 +163,12 @@ class MetricsEventSubscriber:
             print('Unhandled', event)
 
 
-registry = CollectorRegistry()
-collector = MetricsCollector()
-registry.register(collector)
-
-
 class MetricsWebServerPlugin(HttpWebServerBasePlugin):
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
+        self.registry = CollectorRegistry()
+        self.registry.register(MetricsCollector(self.flags.metrics_lock))
 
     def routes(self) -> List[Tuple[int, str]]:
         if self.flags.metrics_path:
@@ -192,15 +190,15 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
 
     def handle_request(self, request: HttpParser) -> None:
         status, headers, output = _bake_output(
-            registry,
+            self.registry,
             (
-                request.header(b"Accept").decode()
-                if request.has_header(b"Accept")
-                else "*/*"
+                request.header(b'Accept').decode()
+                if request.has_header(b'Accept')
+                else '*/*'
             ),
             (
-                request.header(b"Accept-Encoding").decode()
-                if request.has_header(b"Accept-Encoding")
+                request.header(b'Accept-Encoding').decode()
+                if request.has_header(b'Accept-Encoding')
                 else None
             ),
             parse_qs(urlparse(request.path).query),

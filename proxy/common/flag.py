@@ -203,6 +203,9 @@ class FlagParser:
             default_plugins + auth_plugins + requested_plugins,
         )
 
+        if bytes_(PLUGIN_METRICS) in default_plugins:
+            args.metrics_lock = multiprocessing.Lock()
+
         # https://github.com/python/mypy/issues/5865
         #
         # def option(t: object, key: str, default: Any) -> Any:
