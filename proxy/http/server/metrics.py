@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Tuple
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from multiprocessing import Lock
-from multiprocessing.sharedctypes import Value, Synchronized
 
 from prometheus_client.core import CollectorRegistry, CounterMetricFamily
 from prometheus_client.registry import Collector
@@ -48,11 +47,6 @@ flags.add_argument(
 )
 
 
-work_started: Synchronized = Value("i", 0)  # type: ignore[assignment]
-request_complete: Synchronized = Value("i", 0)  # type: ignore[assignment]
-work_finished: Synchronized = Value("i", 0)  # type: ignore[assignment]
-
-
 class MetricsStorage:
 
     def __init__(self) -> None:
@@ -62,24 +56,24 @@ class MetricsStorage:
             self._cleanup()
 
     def _cleanup(self) -> None:
-        patterns = ["*.counter", "*.gauge"]
+        patterns = ['*.counter', '*.gauge']
         for pattern in patterns:
             files = glob.glob(os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, pattern))
             for file_path in files:
                 try:
                     os.remove(file_path)
                 except OSError as e:
-                    print(f"Error deleting file {file_path}: {e}")
+                    print(f'Error deleting file {file_path}: {e}')
 
     def get_counter(self, name: str, default: float = 0.0) -> float:
         with self._lock:
             return self._get_counter(name, default)
 
     def _get_counter(self, name: str, default: float = 0.0) -> float:
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
         if not os.path.exists(path):
             return default
-        return float(Path(path).read_text(encoding="utf-8").strip())
+        return float(Path(path).read_text(encoding='utf-8').strip())
 
     def incr_counter(self, name: str, by: float = 1.0) -> None:
         with self._lock:
@@ -87,18 +81,18 @@ class MetricsStorage:
 
     def _incr_counter(self, name: str, by: float = 1.0) -> None:
         current = self._get_counter(name)
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.counter")
-        Path(path).write_text(str(current + by), encoding="utf-8")
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
+        Path(path).write_text(str(current + by), encoding='utf-8')
 
     def get_gauge(self, name: str, default: float = 0.0) -> float:
         with self._lock:
             return self._get_gauge(name, default)
 
     def _get_gauge(self, name: str, default: float = 0.0) -> float:
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.gauge')
         if not os.path.exists(path):
             return default
-        return float(Path(path).read_text(encoding="utf-8").strip())
+        return float(Path(path).read_text(encoding='utf-8').strip())
 
     def set_gauge(self, name: str, value: float) -> None:
         """Stores a single values."""
@@ -106,8 +100,8 @@ class MetricsStorage:
             self._set_gauge(name, value)
 
     def _set_gauge(self, name: str, value: float) -> None:
-        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f"{name}.gauge")
-        with open(path, "w", encoding="utf-8") as g:
+        path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.gauge')
+        with open(path, 'w', encoding='utf-8') as g:
             g.write(str(value))
 
 
@@ -117,23 +111,23 @@ storage = MetricsStorage()
 class MetricsCollector(Collector):
     def collect(self):
         """Serves from aggregates metrics managed by MetricsEventSubscriber."""
-        print("Collecting", "*" * 10)
+        print('Collecting', '*' * 10)
         counter = CounterMetricFamily(
-            "proxypy_counter",
-            "Total count of proxypy events",
-            labels=["proxypy"],
+            'proxypy_counter',
+            'Total count of proxypy events',
+            labels=['proxypy'],
         )
         counter.add_metric(
-            ["work_started"],
-            storage.get_counter("work_started"),
+            ['work_started'],
+            storage.get_counter('work_started'),
         )
         counter.add_metric(
-            ["request_complete"],
-            storage.get_counter("request_complete"),
+            ['request_complete'],
+            storage.get_counter('request_complete'),
         )
         counter.add_metric(
-            ["work_finished"],
-            storage.get_counter("work_finished"),
+            ['work_finished'],
+            storage.get_counter('work_finished'),
         )
         yield counter
 
@@ -151,7 +145,7 @@ class MetricsEventSubscriber:
             callback=MetricsEventSubscriber.callback,
         )
 
-    def __enter__(self) -> "MetricsEventSubscriber":
+    def __enter__(self) -> 'MetricsEventSubscriber':
         self.subscriber.setup()
         return self
 
@@ -161,14 +155,14 @@ class MetricsEventSubscriber:
     @staticmethod
     def callback(event: Dict[str, Any]) -> None:
         print(event)
-        if event["event_name"] == eventNames.WORK_STARTED:
-            storage.incr_counter("work_started")
-        elif event["event_name"] == eventNames.REQUEST_COMPLETE:
-            storage.incr_counter("request_complete")
-        elif event["event_name"] == eventNames.WORK_FINISHED:
-            storage.incr_counter("work_finished")
+        if event['event_name'] == eventNames.WORK_STARTED:
+            storage.incr_counter('work_started')
+        elif event['event_name'] == eventNames.REQUEST_COMPLETE:
+            storage.incr_counter('request_complete')
+        elif event['event_name'] == eventNames.WORK_FINISHED:
+            storage.incr_counter('work_finished')
         else:
-            print("Unhandled", event)
+            print('Unhandled', event)
 
 
 registry = CollectorRegistry()
@@ -203,13 +197,13 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
         status, headers, output = _bake_output(
             registry,
             (
-                request.header(b"Accept").decode()
-                if request.has_header(b"Accept")
-                else "*/*"
+                request.header(b'Accept').decode()
+                if request.has_header(b'Accept')
+                else '*/*'
             ),
             (
-                request.header(b"Accept-Encoding").decode()
-                if request.has_header(b"Accept-Encoding")
+                request.header(b'Accept-Encoding').decode()
+                if request.has_header(b'Accept-Encoding')
                 else None
             ),
             parse_qs(urlparse(request.path).query),
