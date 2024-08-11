@@ -10,7 +10,7 @@
 """
 import os
 import glob
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Generator
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from multiprocessing.synchronize import Lock
@@ -46,19 +46,20 @@ flags.add_argument(
     % text_(DEFAULT_METRICS_URL_PATH),
 )
 
+
 class MetricsStorage:
 
     def __init__(self, lock: Lock) -> None:
         self._lock = lock
 
-    def get_counter(self, name: str, default: float = 0.0) -> float:
+    def get_counter(self, name: str) -> float:
         with self._lock:
-            return self._get_counter(name, default)
+            return self._get_counter(name)
 
-    def _get_counter(self, name: str, default: float = 0.0) -> float:
+    def _get_counter(self, name: str) -> float:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
         if not os.path.exists(path):
-            return default
+            return 0
         return float(Path(path).read_text(encoding='utf-8').strip())
 
     def incr_counter(self, name: str, by: float = 1.0) -> None:
@@ -70,14 +71,14 @@ class MetricsStorage:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.counter')
         Path(path).write_text(str(current + by), encoding='utf-8')
 
-    def get_gauge(self, name: str, default: float = 0.0) -> float:
+    def get_gauge(self, name: str) -> float:
         with self._lock:
-            return self._get_gauge(name, default)
+            return self._get_gauge(name)
 
-    def _get_gauge(self, name: str, default: float = 0.0) -> float:
+    def _get_gauge(self, name: str) -> float:
         path = os.path.join(DEFAULT_METRICS_DIRECTORY_PATH, f'{name}.gauge')
         if not os.path.exists(path):
-            return default
+            return 0
         return float(Path(path).read_text(encoding='utf-8').strip())
 
     def set_gauge(self, name: str, value: float) -> None:
@@ -93,6 +94,7 @@ class MetricsStorage:
 
 def get_collector(metrics_lock: Lock) -> 'Collector':
     # pylint: disable=import-outside-toplevel
+    from prometheus_client.core import Metric
     from prometheus_client.registry import Collector
 
     class MetricsCollector(Collector):
@@ -100,7 +102,7 @@ def get_collector(metrics_lock: Lock) -> 'Collector':
         def __init__(self, metrics_lock: Lock) -> None:
             self.storage = MetricsStorage(metrics_lock)
 
-        def collect(self):
+        def collect(self) -> Generator[Metric, None, None]:
             """Serves from aggregates metrics managed by MetricsEventSubscriber."""
             # pylint: disable=import-outside-toplevel
             from prometheus_client.core import CounterMetricFamily
@@ -177,7 +179,6 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         # pylint: disable=import-outside-toplevel
         from prometheus_client.core import CollectorRegistry
-        from prometheus_client.registry import Collector
 
         super().__init__(*args, **kwargs)
         self.registry = CollectorRegistry()
@@ -205,7 +206,8 @@ class MetricsWebServerPlugin(HttpWebServerBasePlugin):
         # pylint: disable=import-outside-toplevel
         from prometheus_client.exposition import _bake_output
 
-        status, headers, output = _bake_output(
+        # flake8: noqa
+        status, headers, output = _bake_output(  # type: ignore[no-untyped-call]
             self.registry,
             (
                 request.header(b'Accept').decode()
