@@ -93,10 +93,10 @@ benchmark_asgi() {
   fi
 }
 
-# echo "============================="
-# echo "Benchmarking Proxy.Py"
-# PYTHONPATH=. benchmark_lib proxy $PROXYPY_PORT
-# echo "============================="
+echo "============================="
+echo "Benchmarking Proxy.Py"
+PYTHONPATH=. benchmark_lib proxy $PROXYPY_PORT
+echo "============================="
 
 # echo "============================="
 # echo "Benchmarking Blacksheep"
