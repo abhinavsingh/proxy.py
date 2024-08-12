@@ -20,6 +20,6 @@ class TestGrout(unittest.TestCase):
     def test_grout(self) -> None:
         with self.assertRaises(SystemExit):
             original = sys.argv
-            sys.argv = ["grout", "-h"]
+            sys.argv = ['grout', '-h']
             grout()
             sys.argv = original
