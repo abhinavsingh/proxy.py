@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
+import logging
 from typing import Optional
 
 import certifi
@@ -21,6 +22,9 @@ from ..common.constants import (
 )
 
 
+logger = logging.getLogger(__name__)
+
+
 def client(
     host: bytes,
     port: int,
@@ -30,21 +34,23 @@ def client(
     conn_close: bool = True,
     scheme: bytes = HTTPS_PROTO,
     timeout: float = DEFAULT_TIMEOUT,
+    content_type: bytes = b"application/x-www-form-urlencoded",
 ) -> Optional[HttpParser]:
     """Makes a request to remote registry endpoint"""
     request = build_http_request(
         method=method,
         url=path,
         headers={
-            b'Host': host,
-            b'Content-Type': b'application/x-www-form-urlencoded',
+            b"Host": host,
+            b"Content-Type": content_type,
         },
         body=body,
         conn_close=conn_close,
     )
     try:
         conn = new_socket_connection((host.decode(), port))
-    except ConnectionRefusedError:
+    except ConnectionRefusedError as exc:
+        logger.exception("Connection refused", exc_info=exc)
         return None
     sock: TcpOrTlsSocket = conn
     if scheme == HTTPS_PROTO:
@@ -54,7 +60,8 @@ def client(
             ctx.verify_mode = ssl.CERT_REQUIRED
             ctx.load_verify_locations(cafile=certifi.where())
             sock = ctx.wrap_socket(conn, server_hostname=host.decode())
-        except Exception:
+        except Exception as exc:
+            logger.exception("Unable to wrap", exc_info=exc)
             conn.close()
             return None
     parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
