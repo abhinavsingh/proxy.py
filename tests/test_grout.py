@@ -10,11 +10,17 @@
 """
 import sys
 
+import pytest
 import unittest
 
 from proxy import grout
+from proxy.common.constants import IS_WINDOWS
 
 
+@pytest.mark.skipif(
+    IS_WINDOWS,
+    reason="sys.argv replacement don't really work on windows",
+)
 class TestGrout(unittest.TestCase):
 
     def test_grout(self) -> None:
