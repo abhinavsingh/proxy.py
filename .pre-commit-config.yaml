@@ -60,12 +60,8 @@ repos:
       dashboard/(
         src/core/plugins/inspect_traffic\.json|
         static/bootstrap-4\.3\.1\.min\.(cs|j)s
-      )|
-      requirements-release\.txt
+      )
       $
-  - id: requirements-txt-fixer
-    exclude: >-
-      ^(docs/requirements|requirements(|-(release|testing|tunnel)))\.txt$
   # Non-modifying checks:
   - id: name-tests-test
     args:
@@ -159,11 +155,11 @@ repos:
     - paramiko == 2.11.0
     - types-paramiko == 2.7.3
     - types-requests==2.27.30
-    # From requirements-tunnel.txt
+    # [tunnel]
     - cryptography==36.0.2; python_version <= '3.6'
     - types-setuptools == 57.4.2
     - pyyaml==5.3.1
-    # From requirements-metrics.txt
+    # [metrics]
     - prometheus_client==0.20.0
     args:
     # FIXME: get rid of missing imports ignore

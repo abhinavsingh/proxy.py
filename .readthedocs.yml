@@ -34,9 +34,7 @@ python:
   # system_packages: false
   install:
   - method: pip
-    path: .
-  - requirements: requirements-tunnel.txt
+    path: .[tunnel,metrics]
   - requirements: docs/requirements.txt
-  - requirements: requirements-metrics.txt
 
 ...
