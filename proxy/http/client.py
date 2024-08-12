@@ -9,11 +9,18 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
+import logging
 from typing import Optional
 
 from .parser import HttpParser, httpParserTypes
+from ..common.types import TcpOrTlsSocket
 from ..common.utils import build_http_request, new_socket_connection
-from ..common.constants import HTTPS_PROTO, DEFAULT_TIMEOUT
+from ..common.constants import (
+    HTTPS_PROTO, DEFAULT_TIMEOUT, DEFAULT_SSL_CONTEXT_OPTIONS,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 def client(
@@ -25,6 +32,7 @@ def client(
     conn_close: bool = True,
     scheme: bytes = HTTPS_PROTO,
     timeout: float = DEFAULT_TIMEOUT,
+    content_type: bytes = b'application/x-www-form-urlencoded',
 ) -> Optional[HttpParser]:
     """Makes a request to remote registry endpoint"""
     request = build_http_request(
@@ -32,27 +40,29 @@ def client(
         url=path,
         headers={
             b'Host': host,
-            b'Content-Type': b'application/x-www-form-urlencoded',
+            b'Content-Type': content_type,
         },
         body=body,
         conn_close=conn_close,
     )
     try:
         conn = new_socket_connection((host.decode(), port))
-    except ConnectionRefusedError:
+    except Exception as exc:
+        logger.exception('Cannot establish connection', exc_info=exc)
         return None
-    try:
-        sock = (
-            ssl.wrap_socket(sock=conn, ssl_version=ssl.PROTOCOL_TLSv1_2)
-            if scheme == HTTPS_PROTO
-            else conn
-        )
-    except Exception:
-        conn.close()
-        return None
-    parser = HttpParser(
-        httpParserTypes.RESPONSE_PARSER,
-    )
+    sock: TcpOrTlsSocket = conn
+    if scheme == HTTPS_PROTO:
+        try:
+            ctx = ssl.SSLContext(protocol=(ssl.PROTOCOL_TLS_CLIENT))
+            ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
+            ctx.verify_mode = ssl.CERT_REQUIRED
+            ctx.load_default_certs()
+            sock = ctx.wrap_socket(conn, server_hostname=host.decode())
+        except Exception as exc:
+            logger.exception('Unable to wrap', exc_info=exc)
+            conn.close()
+            return None
+    parser = HttpParser(httpParserTypes.RESPONSE_PARSER)
     sock.settimeout(timeout)
     try:
         sock.sendall(request)
