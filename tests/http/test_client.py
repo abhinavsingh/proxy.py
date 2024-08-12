@@ -26,3 +26,25 @@ class TestClient(unittest.TestCase):
         )
         assert response is not None
         self.assertEqual(response.code, b'301')
+
+    def test_client_connection_refused(self) -> None:
+        response = client(
+            host=b"cannot-establish-connection.com",
+            port=443,
+            scheme=b"https",
+            path=b"/",
+            method=b"GET",
+            content_type=b"text/html",
+        )
+        assert response is None
+
+    def test_cannot_ssl_wrap(self) -> None:
+        response = client(
+            host=b"example.com",
+            port=80,
+            scheme=b"https",
+            path=b"/",
+            method=b"GET",
+            content_type=b"text/html",
+        )
+        assert response is None
