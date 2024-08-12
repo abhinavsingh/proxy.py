@@ -162,7 +162,7 @@ DEFAULT_WAIT_FOR_TASKS_TIMEOUT = 1 / 1000
 DEFAULT_INACTIVE_CONN_CLEANUP_TIMEOUT = 1   # in seconds
 DEFAULT_SSL_CONTEXT_OPTIONS = (
     ssl.OP_NO_COMPRESSION
-    if sys.version_info >= (3, 11)
+    if sys.version_info >= (3, 10)
     else (ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
 )
 
