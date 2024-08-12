@@ -1473,9 +1473,7 @@ Above:
 
 **This is a WIP and may not work as documented**
 
-Requires `paramiko` to work.
-
-See [requirements-tunnel.txt](https://github.com/abhinavsingh/proxy.py/blob/develop/requirements-tunnel.txt)
+Requires `paramiko` to work.  Install dependencies using `pip install "proxy.py[tunnel]"`
 
 ## Proxy Remote Requests Locally
 

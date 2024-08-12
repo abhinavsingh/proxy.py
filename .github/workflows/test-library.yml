@@ -495,7 +495,7 @@ jobs:
           ${{ runner.os }}-pip-${{
             steps.calc-cache-key-py.outputs.py-hash-key
           }}-${{
-            hashFiles('tox.ini', 'requirements**.txt')
+            hashFiles('tox.ini', 'setup.cfg')
           }}
         restore-keys: |
           ${{ runner.os }}-pip-${{
