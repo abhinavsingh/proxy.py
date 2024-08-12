@@ -71,10 +71,10 @@ jobs:
       container-version: v${{ steps.container.outputs.version }}
       container-platforms: ${{ steps.container.outputs.platforms }}
     steps:
-    - name: Switch to using Python 3.12 by default
+    - name: Switch to using Python 3.9 by default
       uses: actions/setup-python@v4
       with:
-        python-version: 3.12
+        python-version: 3.9
     - name: >-
         Mark the build as untagged '${{
             github.event.repository.default_branch
@@ -224,10 +224,10 @@ jobs:
       TOXENV: cleanup-dists,build-dists
 
     steps:
-    - name: Switch to using Python v3.12
+    - name: Switch to using Python v3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12'
+        python-version: '3.10'
     - name: >-
         Calculate Python interpreter version hash value
         for use in the cache key
@@ -349,10 +349,10 @@ jobs:
       TOXENV: ${{ matrix.toxenv }}
 
     steps:
-    - name: Switch to using Python v3.12
+    - name: Switch to using Python v3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.12'
+        python-version: '3.10'
     - name: >-
         Calculate Python interpreter version hash value
         for use in the cache key
@@ -675,7 +675,7 @@ jobs:
   #   strategy:
   #     matrix:
   #       os: [macOS-latest]
-  #       python: ['3.12']
+  #       python: ['3.10']
   #     # max-parallel: 1
   #     fail-fast: false
   #   steps:
@@ -728,7 +728,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, macOS-latest]
-        python: ['3.12']
+        python: ['3.10']
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
