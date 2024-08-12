@@ -101,7 +101,7 @@ lib-clean:
 
 lib-dep:
 	pip install --upgrade pip && \
-	pip install .[testing,release,tunnel,metrics] && \
+	pip install -e .[testing,release,tunnel,metrics] && \
 	pip install "setuptools>=42"
 
 lib-pre-commit:
