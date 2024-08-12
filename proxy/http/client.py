@@ -34,15 +34,15 @@ def client(
     conn_close: bool = True,
     scheme: bytes = HTTPS_PROTO,
     timeout: float = DEFAULT_TIMEOUT,
-    content_type: bytes = b"application/x-www-form-urlencoded",
+    content_type: bytes = b'application/x-www-form-urlencoded',
 ) -> Optional[HttpParser]:
     """Makes a request to remote registry endpoint"""
     request = build_http_request(
         method=method,
         url=path,
         headers={
-            b"Host": host,
-            b"Content-Type": content_type,
+            b'Host': host,
+            b'Content-Type': content_type,
         },
         body=body,
         conn_close=conn_close,
@@ -50,7 +50,7 @@ def client(
     try:
         conn = new_socket_connection((host.decode(), port))
     except ConnectionRefusedError as exc:
-        logger.exception("Connection refused", exc_info=exc)
+        logger.exception('Connection refused', exc_info=exc)
         return None
     sock: TcpOrTlsSocket = conn
     if scheme == HTTPS_PROTO:
@@ -61,7 +61,7 @@ def client(
             ctx.load_verify_locations(cafile=certifi.where())
             sock = ctx.wrap_socket(conn, server_hostname=host.decode())
         except Exception as exc:
-            logger.exception("Unable to wrap", exc_info=exc)
+            logger.exception('Unable to wrap', exc_info=exc)
             conn.close()
             return None
     parser = HttpParser(httpParserTypes.RESPONSE_PARSER)

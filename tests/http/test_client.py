@@ -17,12 +17,12 @@ class TestClient(unittest.TestCase):
 
     def test_client(self) -> None:
         response = client(
-            host=b"google.com",
+            host=b'google.com',
             port=443,
-            scheme=b"https",
-            path=b"/",
-            method=b"GET",
-            content_type=b"text/html",
+            scheme=b'https',
+            path=b'/',
+            method=b'GET',
+            content_type=b'text/html',
         )
         assert response is not None
-        self.assertEqual(response.code, b"301")
+        self.assertEqual(response.code, b'301')
