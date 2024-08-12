@@ -2563,7 +2563,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.6.dev27+g975b6b68.d20240811
+proxy.py v2.4.6.dev25+g2754b928.d20240812
 
 options:
   -h, --help            show this help message and exit
@@ -2692,8 +2692,8 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3118/li
-                        b/python3.11/site-packages/certifi/cacert.pem. Provide
+  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3122/li
+                        b/python3.12/site-packages/certifi/cacert.pem. Provide
                         path to custom CA bundle for peer certificate
                         verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE

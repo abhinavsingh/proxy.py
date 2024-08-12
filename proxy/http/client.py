@@ -12,8 +12,6 @@ import ssl
 import logging
 from typing import Optional
 
-import certifi
-
 from .parser import HttpParser, httpParserTypes
 from ..common.types import TcpOrTlsSocket
 from ..common.utils import build_http_request, new_socket_connection
@@ -58,7 +56,7 @@ def client(
             ctx = ssl.SSLContext(protocol=(ssl.PROTOCOL_TLS_CLIENT))
             ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
             ctx.verify_mode = ssl.CERT_REQUIRED
-            ctx.load_verify_locations(cafile=certifi.where())
+            ctx.load_default_certs()
             sock = ctx.wrap_socket(conn, server_hostname=host.decode())
         except Exception as exc:
             logger.exception('Unable to wrap', exc_info=exc)
