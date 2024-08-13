@@ -33,8 +33,9 @@ def client(
     scheme: bytes = HTTPS_PROTO,
     timeout: float = DEFAULT_TIMEOUT,
     content_type: bytes = b'application/x-www-form-urlencoded',
+    verify: bool = True,
 ) -> Optional[HttpParser]:
-    """Makes a request to remote registry endpoint"""
+    """HTTP Client"""
     request = build_http_request(
         method=method,
         url=path,
@@ -53,9 +54,10 @@ def client(
     sock: TcpOrTlsSocket = conn
     if scheme == HTTPS_PROTO:
         try:
-            ctx = ssl.SSLContext(protocol=(ssl.PROTOCOL_TLS_CLIENT))
+            ctx = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
             ctx.options |= DEFAULT_SSL_CONTEXT_OPTIONS
-            ctx.verify_mode = ssl.CERT_REQUIRED
+            ctx.check_hostname = verify
+            ctx.verify_mode = ssl.CERT_NONE if not verify else ssl.CERT_REQUIRED
             ctx.load_default_certs()
             sock = ctx.wrap_socket(conn, server_hostname=host.decode())
         except Exception as exc:
