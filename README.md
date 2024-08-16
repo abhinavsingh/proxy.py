@@ -2497,16 +2497,18 @@ for list of tests.
 
 # Projects Using Proxy.Py
 
-Some of the projects using `proxy.py`
+Some popular projects using `proxy.py`
 
-1. [ray-project](https://github.com/ray-project/ray)
-2. [aio-libs](https://github.com/aio-libs/aiohttp)
-3. [wifipumpkin3](https://github.com/P0cL4bs/wifipumpkin3)
-4. [MerossIot](https://github.com/albertogeniola/MerossIot)
-5. [pyshorteners](https://github.com/ellisonleao/pyshorteners)
-6. [Slack API](https://github.com/slackapi/python-slack-events-api)
-7. [ibeam](https://github.com/Voyz/ibeam)
-8. [PyPaperBot](https://github.com/ferru97/PyPaperBot)
+- [pip](https://github.com/pypa/pip)
+- [ray-project](https://github.com/ray-project/ray)
+- [aio-libs](https://github.com/aio-libs/aiohttp)
+- [Selenium Base](https://github.com/seleniumbase/SeleniumBase)
+- [wifipumpkin3](https://github.com/P0cL4bs/wifipumpkin3)
+- [MerossIot](https://github.com/albertogeniola/MerossIot)
+- [pyshorteners](https://github.com/ellisonleao/pyshorteners)
+- [Slack API](https://github.com/slackapi/python-slack-events-api)
+- [ibeam](https://github.com/Voyz/ibeam)
+- [PyPaperBot](https://github.com/ferru97/PyPaperBot)
 
 For full list see [used by](https://github.com/abhinavsingh/proxy.py/network/dependents?package_id=UGFja2FnZS01MjQ0MDY5Ng%3D%3D)
 

@@ -48,8 +48,8 @@ def client(
     )
     try:
         conn = new_socket_connection((host.decode(), port))
-    except Exception as exc:
-        logger.exception('Cannot establish connection', exc_info=exc)
+    except Exception:
+        # logger.exception('Cannot establish connection', exc_info=exc)
         return None
     sock: TcpOrTlsSocket = conn
     if scheme == HTTPS_PROTO:
