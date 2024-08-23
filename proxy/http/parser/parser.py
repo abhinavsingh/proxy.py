@@ -218,9 +218,9 @@ class HttpParser:
 
     @property
     def is_websocket_upgrade(self) -> bool:
-        return (
-            self.is_connection_upgrade
-            and self.header(b'upgrade').lower() == b'websocket'
+        return self.is_connection_upgrade and self.header(b'upgrade').lower() in (
+            b'websocket',
+            b'derp',
         )
 
     @property
