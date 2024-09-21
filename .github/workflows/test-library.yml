@@ -453,6 +453,9 @@ jobs:
         - 3.9
         - 3.8
         - 3.7
+        include:
+          - os: Ubuntu-20.04
+            python: 3.6
 
     continue-on-error: >-
       ${{
