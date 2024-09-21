@@ -16,6 +16,6 @@ class TlsInterceptConditionallyPlugin(HttpProxyBasePlugin):
     """TLS intercept conditionally."""
 
     def do_intercept(self, request: HttpParser) -> bool:
-        if request.host == b"httpbin.org":
+        if request.host == b'httpbin.org':
             return False
         return super().do_intercept(request)
