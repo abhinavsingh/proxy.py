@@ -449,10 +449,10 @@ jobs:
         - 3.9
         - 3.8
         include:
-          - os: Ubuntu-20.04
-            python: 3.6
-          - os: Ubuntu-20.04
-            python: 3.7
+        - os: Ubuntu-20.04
+          python: 3.6
+        - os: Ubuntu-20.04
+          python: 3.7
 
     continue-on-error: >-
       ${{
