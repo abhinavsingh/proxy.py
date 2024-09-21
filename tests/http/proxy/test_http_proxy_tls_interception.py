@@ -204,7 +204,7 @@ class TestHttpProxyTlsInterception(Assertions):
         )
         self.proxy_plugin.return_value.before_upstream_connection.assert_called()
         self.proxy_plugin.return_value.handle_client_request.assert_called_once()
-        self.assertEqual(self.proxy_plugin.return_value.do_intercept.call_count, 2)
+        self.proxy_plugin.return_value.do_intercept.assert_called_once()
         # All the invoked lifecycle callbacks will receive the CONNECT request
         # packet with / as the path
         callback_request: HttpParser = \
