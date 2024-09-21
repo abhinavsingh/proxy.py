@@ -16,7 +16,7 @@ concurrency:
 jobs:
   pre-setup:
     name: ⚙️ Pre-set global build settings
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: bash
@@ -31,7 +31,7 @@ jobs:
         echo "::set-output name=platforms::$PLATFORMS"
 
   ghcr-base:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     if: success()
