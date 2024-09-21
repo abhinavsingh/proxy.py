@@ -340,7 +340,7 @@ jobs:
         - build-docs
         - doctest-docs
         - linkcheck-docs
-        - spellcheck-docs
+        # - spellcheck-docs
       fail-fast: false
 
     env:

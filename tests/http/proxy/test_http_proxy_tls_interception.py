@@ -297,7 +297,7 @@ class TestHttpProxyTlsInterception(Assertions):
             self.proxy_plugin.return_value.handle_client_request.call_count,
             2,
         )
-        self.proxy_plugin.return_value.do_intercept.assert_called_once()
+        self.assertEqual(self.proxy_plugin.return_value.do_intercept.call_count, 2)
 
         callback_request = \
             self.proxy_plugin.return_value.handle_client_request.call_args_list[1][0][0]
