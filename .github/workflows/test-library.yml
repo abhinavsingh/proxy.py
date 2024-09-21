@@ -46,7 +46,7 @@ concurrency:
 jobs:
   pre-setup:
     name: ⚙️ Pre-set global build settings
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     defaults:
       run:
         shell: python
@@ -216,7 +216,7 @@ jobs:
     needs:
     - pre-setup  # transitive, for accessing settings
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     env:
       PY_COLORS: 1
@@ -331,7 +331,7 @@ jobs:
     - build
     - pre-setup  # transitive, for accessing settings
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         toxenv:
@@ -440,7 +440,7 @@ jobs:
       matrix:
         os:
         - macOS-12
-        - Ubuntu-20.04
+        - Ubuntu-24.04
         - Windows-latest
         python:
         # NOTE: The latest and the lowest supported Pythons are prioritized
@@ -554,7 +554,7 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   test-container:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     if: success()
@@ -614,7 +614,7 @@ jobs:
         ./tests/integration/test_integration.sh 8899
 
   analyze:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     name: 🛡️ Analyze
     # schedule:
     # - cron: '0 14 * * 1'
@@ -696,7 +696,7 @@ jobs:
     name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest, macOS-12]
+        os: [ubuntu-24.04, windows-latest, macOS-12]
         node: ['10.x', '11.x', '12.x']
       # max-parallel: 4
       fail-fast: false
@@ -727,7 +727,7 @@ jobs:
     name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macOS-latest]
+        os: [ubuntu-24.04, macOS-latest]
         python: ['3.10']
       fail-fast: false
     steps:
@@ -751,7 +751,7 @@ jobs:
         python3 -m proxy --version
 
   ghcr-latest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     if: success()
@@ -833,7 +833,7 @@ jobs:
         -t $LATEST_TAG .
 
   ghcr-openssl:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     if: success()
@@ -913,7 +913,7 @@ jobs:
         -t $LATEST_TAG .
 
   docker-latest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     if: success()
@@ -984,7 +984,7 @@ jobs:
     - ghcr-openssl
     - docker-latest
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Decide whether the needed jobs succeeded or failed
@@ -999,7 +999,7 @@ jobs:
     - pre-setup  # transitive, for accessing settings
     if: >-
       fromJSON(needs.pre-setup.outputs.release-requested)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     environment:
       name: release
@@ -1028,7 +1028,7 @@ jobs:
     if: >-
       fromJSON(needs.pre-setup.outputs.is-untagged-devel)
       || fromJSON(needs.pre-setup.outputs.release-requested)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     environment:
       name: release-testpypi
@@ -1057,7 +1057,7 @@ jobs:
     needs:
     - publish-pypi
     - pre-setup  # transitive, for accessing settings
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     steps:
     - name: Fetch the src snapshot
@@ -1090,7 +1090,7 @@ jobs:
     needs:
     - post-release-repo-update
     - pre-setup  # transitive, for accessing settings
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
 
     permissions:
       contents: write
