@@ -1381,6 +1381,12 @@ EXAMPLES:
   Self-hosted solutions:
     grout tcp://:5432 abhinavsingh.my.server         # Custom URL for Postgres service running locally on port 5432
 
+  (*) Wildcard Domains:
+    grout https://host:443 do.main --wildcard        # Receive traffic on provided domain and all it's subdomains
+
+  (*) Host based routing for Wildcard Domains:
+    grout ... --tunnel-route-url host=https://h:p    # When using wildcards, optionally route traffic by incoming host header
+
 SUPPORT:
   Write to us at support@jaxl.com
 
