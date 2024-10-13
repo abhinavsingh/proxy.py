@@ -529,7 +529,7 @@ class GroutClientBasePlugin(ABC):
         origin: HostPort,
         server: HostPort,
     ) -> str:
-        """Returns a valid grout route string.  Example: https://localhost:54321
+        """Returns a valid grout route string.
 
         You MUST override this method.  For a simple pass through,
         simply return the "route" argument value itself.  You can also
