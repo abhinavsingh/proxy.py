@@ -78,6 +78,8 @@
   - [Grout Authentication](#grout-authentication)
   - [Grout Paths](#grout-paths)
   - [Grout Wildcard Domains](#grout-wildcard-domains)
+  - ["Host" Header Based Wildcard Routing](#grout-wildcard-domain-routing-based-upon-host-header)
+  - ["Dynamic" Routing](#grout-client-plugin)
   - [Grout using Docker](#grout-using-docker)
   - [How Grout works](#how-grout-works)
   - [Self-hosted Grout](#self-hosted-grout)
@@ -1442,6 +1444,55 @@ grout https://localhost:8080 custom.example.com --wildcard
 2024-08-05 18:24:59,294 - grout - Logged in as someone@gmail.com
 2024-08-05 18:25:03,159 - setup - Grouting https://*.custom.domain.com
 ```
+
+## Grout Wildcard Domain Routing Based Upon "Host" Header
+
+  > Only available with `--wildcard`
+
+Along with the default route you can also provide additional routes which takes precedence when the host field matches.  Example:
+
+```console
+grout https://localhost:8080 custom.example.com \
+  --wildcard \
+  --tunnel-route-url stream.example.com=http://localhost:7001
+```
+
+You can provide multiple custom routes by repeating this flag.
+
+## Grout Client Plugin
+
+`GroutClientBasePlugin` allows you to dynamically route traffic to different upstreams.  Below is a simple implementation with some description about how to use it.
+
+```python
+class GroutClientPlugin(GroutClientBasePlugin):
+
+    def resolve_route(
+        self,
+        route: str,
+        request: HttpParser,
+        origin: HostPort,
+        server: HostPort,
+    ) -> Tuple[Optional[str], HttpParser]:
+        print(request, origin, server, '->', route)
+        print(request.header(b'host'), request.path)
+        #
+        # Here, we send traffic to localhost:7001 irrespective
+        # of the original "route" value provided to the grout
+        # client OR any custom host:upstream mapping provided
+        # through the --tunnel-route-url flags (when using
+        # --wildcard).
+        #
+        # Optionally, you can also strip path before
+        # sending traffic to upstrem, like:
+        # request.path = b"/"
+        #
+        # To drop the request, simply return None for route
+        # return None, request
+        #
+        return 'http://localhost:7001', request
+```
+
+See [grout_client.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/grout_client.py) for more information.  To try this out, start by passing `--plugin proxy.plugin.grout_client.GroutClientPlugin` when starting the grout client.
 
 ## Grout using Docker
 
