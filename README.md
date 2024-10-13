@@ -1449,7 +1449,7 @@ grout https://localhost:8080 custom.example.com --wildcard
 
   > Only available with `--wildcard`
 
-Along with the default route you can also provide additional routes which takes precendence when the host field matches.  Example:
+Along with the default route you can also provide additional routes which takes precedence when the host field matches.  Example:
 
 ```console
 grout https://localhost:8080 custom.example.com \
