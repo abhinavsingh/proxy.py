@@ -82,6 +82,7 @@ extend-ignore =
   S101    # FIXME: assertions are thrown away in optimized mode, needs audit
   S104    # FIXME: bind-all interface listen
   S105    # FIXME: hardcoded password?
+  S113    # FIXME: Call to httpx without timeout (false positive)
   S303    # FIXME: insecure hash func
   S311    # FIXME: `random` needs auditing
   S404    # FIXME: `subprocess` use needs auditing
