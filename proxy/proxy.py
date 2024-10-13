@@ -20,6 +20,7 @@ import getpass
 import logging
 import argparse
 import threading
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Type, Tuple, Optional, cast
 
 from .core.ssh import SshTunnelListener, SshHttpProtocolHandler
@@ -28,6 +29,7 @@ from .core.event import EventManager
 from .http.codes import httpStatusCodes
 from .common.flag import FlagParser, flags
 from .http.client import client
+from .common.types import HostPort
 from .common.utils import bytes_
 from .core.work.fd import RemoteFdExecutor
 from .http.methods import httpMethods
@@ -44,6 +46,7 @@ from .common.constants import (
     DEFAULT_SSH_LISTENER_KLASS,
 )
 from .core.event.metrics import MetricsEventSubscriber
+from .http.parser.parser import HttpParser
 
 
 if TYPE_CHECKING:   # pragma: no cover
@@ -509,3 +512,28 @@ def grout() -> None:  # noqa: C901
     assert env is not None
     print('\r' + ' ' * 70 + '\r', end='', flush=True)
     Plugins.from_bytes(env['m'].encode(), name='client').grout(env=env['e'])  # type: ignore[attr-defined]
+
+
+class GroutClientBasePlugin(ABC):
+    """Base class for dynamic grout client rules.
+
+    Implementation of this class must be stateless because a new instance is created
+    for every route decision making.
+    """
+
+    @abstractmethod
+    def resolve_route(
+        self,
+        route: str,
+        request: HttpParser,
+        origin: HostPort,
+        server: HostPort,
+    ) -> str:
+        """Returns a valid grout route string.  Example: https://localhost:54321
+
+        You MUST override this method.  For a simple pass through,
+        simply return the "route" argument value itself.  You can also
+        return a dynamic value based upon "request" and "origin" information.
+        E.g. sending to different upstream services based upon request Host header.
+        """
+        raise NotImplementedError()

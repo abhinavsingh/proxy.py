@@ -180,11 +180,12 @@ DEFAULT_METRICS_DIRECTORY_PATH = os.path.join(DEFAULT_DATA_DIRECTORY_PATH, "metr
 
 # Cor plugins enabled by default or via flags
 DEFAULT_ABC_PLUGINS = [
-    'HttpProtocolHandlerPlugin',
-    'HttpProxyBasePlugin',
-    'HttpWebServerBasePlugin',
-    'WebSocketTransportBasePlugin',
-    'ReverseProxyBasePlugin',
+    "HttpProtocolHandlerPlugin",
+    "HttpProxyBasePlugin",
+    "HttpWebServerBasePlugin",
+    "WebSocketTransportBasePlugin",
+    "ReverseProxyBasePlugin",
+    "GroutClientBasePlugin",
 ]
 PLUGIN_DASHBOARD = 'proxy.dashboard.ProxyDashboard'
 PLUGIN_HTTP_PROXY = 'proxy.http.proxy.HttpProxyPlugin'
