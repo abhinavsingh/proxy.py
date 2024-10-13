@@ -10,6 +10,8 @@
 """
 
 
+from typing import Tuple
+
 from proxy.proxy import GroutClientBasePlugin
 from proxy.common.types import HostPort
 from proxy.http.parser.parser import HttpParser
@@ -23,11 +25,14 @@ class GroutClientPlugin(GroutClientBasePlugin):
         request: HttpParser,
         origin: HostPort,
         server: HostPort,
-    ) -> str:
+    ) -> Tuple[str, HttpParser]:
         print(request, origin, server, '->', route)
         print(request.header(b'host'), request.path)
         # Send to localhost:7001 irrespective of the
         # original "route" value provided to the grout client
         # OR any custom host:upstream mapping provided through the
         # --tunnel-route flags.
-        return 'http://localhost:7001'
+        #
+        # Optionally, you can also strip path like this:
+        # request.path = b"/"
+        return 'http://localhost:7001', request

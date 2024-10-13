@@ -528,12 +528,18 @@ class GroutClientBasePlugin(ABC):
         request: HttpParser,
         origin: HostPort,
         server: HostPort,
-    ) -> str:
+    ) -> Tuple[str, HttpParser]:
         """Returns a valid grout route string.
 
-        You MUST override this method.  For a simple pass through,
-        simply return the "route" argument value itself.  You can also
-        return a dynamic value based upon "request" and "origin" information.
+        You MUST override this method.  This method returns 2-tuple where
+        first value is the "route" and second the "request" object.
+
+        For a simple pass through, simply return the "route" argument value itself.
+        You can also return a dynamic value based upon "request" and "origin" information.
         E.g. sending to different upstream services based upon request Host header.
+
+        You can also modify the original request object and return.  Common examples
+        include strip-path scenario, where you would like to strip the path before
+        sending the request to upstream.
         """
         raise NotImplementedError()
