@@ -1492,7 +1492,7 @@ class GroutClientPlugin(GroutClientBasePlugin):
         return 'http://localhost:7001', request
 ```
 
-See [grout_client.py](./proxy/plugin/grout_client.py) for more information.  To try this out, start by passing `--plugin proxy.plugin.grout_client.GroutClientPlugin` when starting the grout client.
+See [grout_client.py](https://github.com/abhinavsingh/proxy.py/blob/develop/proxy/plugin/grout_client.py) for more information.  To try this out, start by passing `--plugin proxy.plugin.grout_client.GroutClientPlugin` when starting the grout client.
 
 ## Grout using Docker
 
