@@ -283,7 +283,12 @@ class HttpParser:
                 self.state = httpParserStates.COMPLETE
         self.buffer = None if raw == b'' else raw
 
-    def build(self, disable_headers: Optional[List[bytes]] = None, for_proxy: bool = False) -> bytes:
+    def build(
+        self,
+        disable_headers: Optional[List[bytes]] = None,
+        for_proxy: bool = False,
+        host: Optional[bytes] = None,
+    ) -> bytes:
         """Rebuild the request object."""
         assert self.method and self.version and self.type == httpParserTypes.REQUEST_PARSER
         if disable_headers is None:
@@ -301,11 +306,22 @@ class HttpParser:
                 path
             ) if not self._is_https_tunnel else (self.host + COLON + str(self.port).encode())
         return build_http_request(
-            self.method, path, self.version,
-            headers={} if not self.headers else {
-                self.headers[k][0]: self.headers[k][1] for k in self.headers if
-                k.lower() not in disable_headers
-            },
+            self.method,
+            path,
+            self.version,
+            headers=(
+                {}
+                if not self.headers
+                else {
+                    self.headers[k][0]: (
+                        self.headers[k][1]
+                        if host is None or self.headers[k][0].lower() != b'host'
+                        else host
+                    )
+                    for k in self.headers
+                    if k.lower() not in disable_headers
+                }
+            ),
             body=body,
             no_ua=True,
         )

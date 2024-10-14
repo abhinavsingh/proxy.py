@@ -49,7 +49,6 @@ class TcpConnection(ABC):
 
     def send(self, data: Union[memoryview, bytes]) -> int:
         """Users must handle BrokenPipeError exceptions"""
-        # logger.info(data.tobytes())
         return self.connection.send(data)
 
     def recv(
@@ -67,7 +66,7 @@ class TcpConnection(ABC):
         return memoryview(data)
 
     def close(self) -> bool:
-        if not self.closed:
+        if not self.closed and self.connection:
             self.connection.close()
             self.closed = True
         return self.closed
@@ -97,8 +96,9 @@ class TcpConnection(ABC):
             self._num_buffer -= 1
         else:
             self.buffer[0] = mv[sent:]
-        del mv
         logger.debug('flushed %d bytes to %s' % (sent, self.tag))
+        # logger.info(mv[:sent].tobytes())
+        del mv
         return sent
 
     def is_reusable(self) -> bool:
