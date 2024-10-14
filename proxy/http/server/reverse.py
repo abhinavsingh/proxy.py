@@ -128,11 +128,15 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 self.upstream.queue(
                     memoryview(
                         request.build(
-                            host=self.choice.hostname
-                            + (
-                                COLON + bytes_(self.choice.port)
-                                if self.choice.port is not None
-                                else b''
+                            host=(
+                                self.choice.hostname
+                                + (
+                                    COLON + bytes_(self.choice.port)
+                                    if self.choice.port is not None
+                                    else b''
+                                )
+                                if self.flags.rewrite_host_header
+                                else None
                             ),
                         ),
                     ),

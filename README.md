@@ -1075,7 +1075,7 @@ following `Nginx` config:
 
 ```console
 location /get {
-    proxy_pass http://httpbin.org/get
+    proxy_pass http://httpbin.org/get;
 }
 ```
 
@@ -1093,6 +1093,36 @@ Verify using `curl -v localhost:8899/get`:
   "url": "https://localhost/get"
 }
 ```
+
+#### Rewrite Host Header
+
+With above example, you may sometimes see:
+
+```console
+>
+* Empty reply from server
+* Closing connection
+curl: (52) Empty reply from server
+```
+
+This is happenening because our default reverse proxy plugin `ReverseProxyPlugin` is configured
+with a `http` and a `https` upstream server.  And, by default `ReverseProxyPlugin` preserves the
+original host header.  While this works with `https` upstreams, this doesn't work reliably with
+`http` upstreams.  To work around this problem use the `--rewrite-host-header` flags.
+
+Example:
+
+
+```console
+❯ proxy --enable-reverse-proxy \
+    --plugins proxy.plugin.ReverseProxyPlugin \
+    --rewrite-host-header
+```
+
+This will ensure that `Host` header field is set as `httpbin.org` and works with both `http` and
+`https` upstreams.
+
+> NOTE: Whether to use `--rewrite-host-header` or not depends upon your use-case.
 
 ## Plugin Ordering
 
@@ -2613,7 +2643,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
-          [--enable-reverse-proxy] [--enable-metrics]
+          [--enable-reverse-proxy] [--rewrite-host-header] [--enable-metrics]
           [--metrics-path METRICS_PATH] [--pac-file PAC_FILE]
           [--pac-file-url-path PAC_FILE_URL_PATH]
           [--cloudflare-dns-mode CLOUDFLARE_DNS_MODE]
@@ -2622,7 +2652,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.6.dev25+g2754b928.d20240812
+proxy.py v2.4.8.dev8+gc703edac.d20241013
 
 options:
   -h, --help            show this help message and exit
@@ -2791,6 +2821,9 @@ options:
                         response that will be compressed (gzipped).
   --enable-reverse-proxy
                         Default: False. Whether to enable reverse proxy core.
+  --rewrite-host-header
+                        Default: False. If used, reverse proxy server will
+                        rewrite Host header field before sending to upstream.
   --enable-metrics      Default: False. Enables metrics.
   --metrics-path METRICS_PATH
                         Default: /metrics. Web server path to serve proxy.py

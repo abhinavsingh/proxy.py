@@ -165,6 +165,7 @@ DEFAULT_SSL_CONTEXT_OPTIONS = (
     if sys.version_info >= (3, 10)
     else (ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 | ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1)
 )
+DEFAULT_ENABLE_REWRITE_HOST = False
 
 DEFAULT_DEVTOOLS_DOC_URL = 'http://proxy'
 DEFAULT_DEVTOOLS_FRAME_ID = secrets.token_hex(8)
