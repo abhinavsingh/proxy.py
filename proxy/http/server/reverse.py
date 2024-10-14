@@ -17,7 +17,7 @@ from proxy.http import Url
 from proxy.core.base import TcpUpstreamConnectionHandler
 from proxy.http.parser import HttpParser
 from proxy.http.server import HttpWebServerBasePlugin
-from proxy.common.utils import text_
+from proxy.common.utils import text_, bytes_
 from proxy.http.exception import HttpProtocolException
 from proxy.common.constants import (
     COLON, HTTP_PROTO, HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
@@ -130,9 +130,9 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         request.build(
                             host=self.choice.hostname
                             + (
-                                COLON + self.choice.port.to_bytes()
+                                COLON + bytes_(self.choice.port)
                                 if self.choice.port is not None
-                                else b''
+                                else b""
                             ),
                         ),
                     ),
