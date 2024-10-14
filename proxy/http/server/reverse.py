@@ -132,7 +132,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                             + (
                                 COLON + bytes_(self.choice.port)
                                 if self.choice.port is not None
-                                else b""
+                                else b''
                             ),
                         ),
                     ),
