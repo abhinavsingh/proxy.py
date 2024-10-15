@@ -25,9 +25,6 @@ import contextlib
 from types import TracebackType
 from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
-# noqa: WPS436
-import _ssl  # type: ignore[import-not-found]
-
 from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
@@ -43,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 def cert_der_to_dict(der: Optional[bytes]) -> Dict[str, Any]:
     """Parse a DER formatted certificate to a python dict"""
+    # pylint: disable=import-outside-toplevel
+    import _ssl  # noqa: WPS436
+
     if not der:
         return {}
     with tempfile.NamedTemporaryFile(delete=False) as cert_file:
