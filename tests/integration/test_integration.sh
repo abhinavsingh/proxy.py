@@ -16,6 +16,8 @@
 # For github action, we simply bank upon GitHub
 # to clean up any background process including
 # proxy.py
+#
+set -x
 
 PROXY_PY_PORT=$1
 if [[ -z "$PROXY_PY_PORT" ]]; then
