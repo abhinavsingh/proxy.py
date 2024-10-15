@@ -17,10 +17,10 @@ from proxy.http import Url
 from proxy.core.base import TcpUpstreamConnectionHandler
 from proxy.http.parser import HttpParser
 from proxy.http.server import HttpWebServerBasePlugin
-from proxy.common.utils import text_
+from proxy.common.utils import text_, bytes_
 from proxy.http.exception import HttpProtocolException
 from proxy.common.constants import (
-    HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
+    COLON, HTTP_PROTO, HTTPS_PROTO, DEFAULT_HTTP_PORT, DEFAULT_HTTPS_PORT,
     DEFAULT_REVERSE_PROXY_ACCESS_LOG_FORMAT,
 )
 from ...common.types import Readables, Writables, Descriptors
@@ -111,8 +111,8 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             assert self.choice and self.choice.hostname
             port = (
                 self.choice.port or DEFAULT_HTTP_PORT
-                if self.choice.scheme == b'http'
-                else DEFAULT_HTTPS_PORT
+                if self.choice.scheme == HTTP_PROTO
+                else self.choice.port or DEFAULT_HTTPS_PORT
             )
             self.initialize_upstream(text_(self.choice.hostname), port)
             assert self.upstream
@@ -120,14 +120,27 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 self.upstream.connect()
                 if self.choice.scheme == HTTPS_PROTO:
                     self.upstream.wrap(
-                        text_(
-                            self.choice.hostname,
-                        ),
+                        text_(self.choice.hostname),
                         as_non_blocking=True,
                         ca_file=self.flags.ca_file,
                     )
                 request.path = self.choice.remainder
-                self.upstream.queue(memoryview(request.build()))
+                self.upstream.queue(
+                    memoryview(
+                        request.build(
+                            host=(
+                                self.choice.hostname
+                                + (
+                                    COLON + bytes_(self.choice.port)
+                                    if self.choice.port is not None
+                                    else b''
+                                )
+                                if self.flags.rewrite_host_header
+                                else None
+                            ),
+                        ),
+                    ),
+                )
             except ConnectionRefusedError:
                 raise HttpProtocolException(  # pragma: no cover
                     'Connection refused by upstream server {0}:{1}'.format(

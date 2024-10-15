@@ -25,8 +25,6 @@ import contextlib
 from types import TracebackType
 from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 
-import _ssl  # noqa: WPS436
-
 from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
@@ -42,6 +40,9 @@ logger = logging.getLogger(__name__)
 
 def cert_der_to_dict(der: Optional[bytes]) -> Dict[str, Any]:
     """Parse a DER formatted certificate to a python dict"""
+    # pylint: disable=import-outside-toplevel
+    import _ssl  # noqa: WPS436
+
     if not der:
         return {}
     with tempfile.NamedTemporaryFile(delete=False) as cert_file:
@@ -322,6 +323,7 @@ def set_open_file_limit(soft_limit: int) -> None:
     if IS_WINDOWS:  # pragma: no cover
         return
 
+    # pylint: disable=possibly-used-before-assignment
     curr_soft_limit, curr_hard_limit = resource.getrlimit(
         resource.RLIMIT_NOFILE,
     )

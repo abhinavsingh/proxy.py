@@ -16,6 +16,8 @@
 # For github action, we simply bank upon GitHub
 # to clean up any background process including
 # proxy.py
+#
+set -x
 
 PROXY_PY_PORT=$1
 if [[ -z "$PROXY_PY_PORT" ]]; then
@@ -164,8 +166,14 @@ cat downloaded2.whl | $SHASUM -c downloaded2.hash
 VERIFIED5=$?
 rm downloaded2.whl downloaded2.hash
 
+# Without --rewrite-host-header we will receive localhost:<port> as host header back in response
+# read -r -d '' REVERSE_PROXY_RESPONSE << EOM
+# "localhost:$PROXY_PY_PORT"
+# EOM
+
+# With --rewrite-host-header we will receive httpbingo.org as host header back in response
 read -r -d '' REVERSE_PROXY_RESPONSE << EOM
-"localhost:$PROXY_PY_PORT"
+"httpbingo.org"
 EOM
 
 echo "[Test Reverse Proxy Plugin]"
@@ -174,8 +182,5 @@ RESPONSE=$($CMD 2> /dev/null)
 verify_contains "$RESPONSE" "$REVERSE_PROXY_RESPONSE"
 VERIFIED6=$?
 
-# FIXME: VERIFIED6 NOT ASSERTED BECAUSE WE STARTED GETTING EMPTY RESPONSE FROM UPSTREAM
-# AFTER CHANGE FROM HTTPBIN TO HTTPBINGO.   This test works and passes perfectly when
-# run from a local system
-EXIT_CODE=$(( $VERIFIED1 || $VERIFIED2 || $VERIFIED3 || $VERIFIED4 || $VERIFIED5 ))
+EXIT_CODE=$(( $VERIFIED1 || $VERIFIED2 || $VERIFIED3 || $VERIFIED4 || $VERIFIED5 || $VERIFIED6 ))
 exit $EXIT_CODE

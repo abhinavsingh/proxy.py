@@ -29,8 +29,9 @@ from ...common.types import Readables, Writables, Descriptors
 from ...common.utils import text_, build_websocket_handshake_response
 from ...common.constants import (
     DEFAULT_ENABLE_WEB_SERVER, DEFAULT_STATIC_SERVER_DIR,
-    DEFAULT_ENABLE_REVERSE_PROXY, DEFAULT_ENABLE_STATIC_SERVER,
-    DEFAULT_WEB_ACCESS_LOG_FORMAT, DEFAULT_MIN_COMPRESSION_LENGTH,
+    DEFAULT_ENABLE_REWRITE_HOST, DEFAULT_ENABLE_REVERSE_PROXY,
+    DEFAULT_ENABLE_STATIC_SERVER, DEFAULT_WEB_ACCESS_LOG_FORMAT,
+    DEFAULT_MIN_COMPRESSION_LENGTH,
 )
 
 
@@ -76,6 +77,16 @@ flags.add_argument(
     action='store_true',
     default=DEFAULT_ENABLE_REVERSE_PROXY,
     help='Default: False.  Whether to enable reverse proxy core.',
+)
+
+flags.add_argument(
+    '--rewrite-host-header',
+    action='store_true',
+    default=DEFAULT_ENABLE_REWRITE_HOST,
+    help='Default: '
+    + str(DEFAULT_ENABLE_REWRITE_HOST)
+    + '.  '
+    + 'If used, reverse proxy server will rewrite Host header field before sending to upstream.',
 )
 
 

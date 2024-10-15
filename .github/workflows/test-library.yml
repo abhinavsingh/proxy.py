@@ -610,6 +610,7 @@ jobs:
         --enable-web-server
         --enable-reverse-proxy
         --plugin proxy.plugin.ReverseProxyPlugin
+        --rewrite-host-header
         &&
         ./tests/integration/test_integration.sh 8899
 
