@@ -164,8 +164,14 @@ cat downloaded2.whl | $SHASUM -c downloaded2.hash
 VERIFIED5=$?
 rm downloaded2.whl downloaded2.hash
 
+# Without --rewrite-host-header we will receive localhost:<port> as host header back in response
+# read -r -d '' REVERSE_PROXY_RESPONSE << EOM
+# "localhost:$PROXY_PY_PORT"
+# EOM
+
+# With --rewrite-host-header we will receive httpbingo.org as host header back in response
 read -r -d '' REVERSE_PROXY_RESPONSE << EOM
-"localhost:$PROXY_PY_PORT"
+"httpbingo.org"
 EOM
 
 echo "[Test Reverse Proxy Plugin]"
