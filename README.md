@@ -1004,7 +1004,7 @@ Start `proxy.py` as:
 
 `HttpProxyBasePlugin.resolve_dns` callback can also be used to configure `network interface` which must be used as the `source_address` for connection to the upstream server.
 
-See [this thread](https://github.com/abhinavsingh/proxy.py/issues/535#issuecomment-961510862)
+See [this thread](https://github.com/abhinavsingh/proxy.py/issues/535)
 for more details.
 
 PS: There is no plugin named, but [CustomDnsResolverPlugin](#customdnsresolverplugin)
@@ -2350,7 +2350,7 @@ Most likely it's a browser integration issue with system keychain.
 
   `curl -v -x username:password@localhost:8899 https://httpbin.org/get`
 
-- See [this thread](https://github.com/abhinavsingh/proxy.py/issues/89#issuecomment-534845710)
+- See [this thread](https://github.com/abhinavsingh/proxy.py/issues/89)
   for further details.
 
 ## Docker image not working on macOS
@@ -2559,7 +2559,7 @@ Contributors must start `proxy.py` from source to verify and develop new feature
 See [Run proxy.py from command line using repo source](#from-command-line-using-repo-source) for details.
 
 
-[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642#issuecomment-960819271) On `macOS`
+[![WARNING](https://img.shields.io/static/v1?label=MacOS&message=warning&color=red)](https://github.com/abhinavsingh/proxy.py/issues/642) On `macOS`
 you must install `Python` using `pyenv`, as `Python` installed via `homebrew` tends
 to be problematic.  See linked thread for more details.
 
