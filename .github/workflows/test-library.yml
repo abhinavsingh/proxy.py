@@ -698,7 +698,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-24.04, windows-latest, macOS-latest]
-        node: ['10.x', '11.x', '12.x']
+        node: ['12.x']
       # max-parallel: 4
       fail-fast: false
     steps:
@@ -725,7 +725,7 @@ jobs:
 
   developer:
     runs-on: ${{ matrix.os }}
-    name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.node }} @ ${{ matrix.os }}
+    name: 🧑‍💻 👩‍💻 👨‍💻 Developer setup ${{ matrix.python }} @ ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-24.04, macOS-latest]
@@ -1049,7 +1049,7 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.TESTPYPI_API_TOKEN }}
-        repository_url: https://test.pypi.org/legacy/
+        repository-url: https://test.pypi.org/legacy/
 
   post-release-repo-update:
     name: >-
