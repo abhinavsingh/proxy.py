@@ -46,6 +46,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
             )
             self.plugins.append(plugin)
         self._upstream_proxy_pass: Optional[str] = None
+        self._needs_upstream: bool = False
 
     def do_upgrade(self, request: HttpParser) -> bool:
         """Signal web protocol handler to not upgrade websocket requests by default."""
@@ -72,8 +73,6 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 raise HttpProtocolException('before_routing closed connection')
             request = r
 
-        needs_upstream = False
-
         # routes
         for plugin in self.plugins:
             for route in plugin.routes():
@@ -84,7 +83,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         self.choice = Url.from_bytes(
                             random.choice(route[1]),
                         )
-                        needs_upstream = True
+                        self._needs_upstream = True
                         break
                 # Dynamic routes
                 elif isinstance(route, str):
@@ -93,7 +92,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                         choice = plugin.handle_route(request, pattern)
                         if isinstance(choice, Url):
                             self.choice = choice
-                            needs_upstream = True
+                            self._needs_upstream = True
                             self._upstream_proxy_pass = str(self.choice)
                         elif isinstance(choice, memoryview):
                             self.client.queue(choice)
@@ -107,7 +106,7 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 else:
                     raise ValueError('Invalid route')
 
-        if needs_upstream:
+        if self._needs_upstream:
             assert self.choice and self.choice.hostname
             port = (
                 self.choice.port or DEFAULT_HTTP_PORT
@@ -150,10 +149,10 @@ class ReverseProxy(TcpUpstreamConnectionHandler, HttpWebServerBasePlugin):
                 )
 
     def on_client_connection_close(self) -> None:
-        if self.upstream and not self.upstream.closed:
+        if self._needs_upstream and self.upstream and not self.upstream.closed:
             logger.debug('Closing upstream server connection')
             self.upstream.close()
-            self.upstream = None
+        self.upstream = None
 
     def on_client_data(
         self,
