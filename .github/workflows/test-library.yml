@@ -439,7 +439,7 @@ jobs:
       # max-parallel: 4
       matrix:
         os:
-        - macOS-12
+        - macOS-latest
         - Ubuntu-24.04
         - Windows-latest
         python:
@@ -697,7 +697,7 @@ jobs:
     name: 📊 Node ${{ matrix.node }} @ ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-24.04, windows-latest, macOS-12]
+        os: [ubuntu-24.04, windows-latest, macOS-latest]
         node: ['10.x', '11.x', '12.x']
       # max-parallel: 4
       fail-fast: false
