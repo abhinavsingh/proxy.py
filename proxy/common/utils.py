@@ -28,7 +28,8 @@ from typing import Any, Dict, List, Type, Tuple, Callable, Optional
 from .types import HostPort
 from .constants import (
     CRLF, COLON, HTTP_1_1, IS_WINDOWS, WHITESPACE, DEFAULT_TIMEOUT,
-    DEFAULT_THREADLESS, PROXY_AGENT_HEADER_VALUE, DEFAULT_SSL_CONTEXT_OPTIONS,
+    DEFAULT_THREADLESS, DEFAULT_CONNECT_TIMEOUT, PROXY_AGENT_HEADER_VALUE,
+    DEFAULT_SSL_CONTEXT_OPTIONS,
 )
 
 
@@ -249,9 +250,10 @@ def wrap_socket(
 
 
 def new_socket_connection(
-        addr: HostPort,
-        timeout: float = DEFAULT_TIMEOUT,
-        source_address: Optional[HostPort] = None,
+    addr: HostPort,
+    timeout: float = DEFAULT_TIMEOUT,
+    connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
+    source_address: Optional[HostPort] = None,
 ) -> socket.socket:
     conn = None
     try:
@@ -260,22 +262,29 @@ def new_socket_connection(
             conn = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM, 0,
             )
-            conn.settimeout(timeout)
+            conn.settimeout(connect_timeout)
             conn.connect(addr)
         else:
             conn = socket.socket(
                 socket.AF_INET6, socket.SOCK_STREAM, 0,
             )
-            conn.settimeout(timeout)
+            conn.settimeout(connect_timeout)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
         pass    # does not appear to be an IPv4 or IPv6 address
 
     if conn is not None:
+        conn.settimeout(timeout)
         return conn
 
     # try to establish dual stack IPv4/IPv6 connection.
-    return socket.create_connection(addr, timeout=timeout, source_address=source_address)
+    conn = socket.create_connection(
+        addr,
+        timeout=connect_timeout,
+        source_address=source_address,
+    )
+    conn.settimeout(timeout)
+    return conn
 
 
 class socket_connection(contextlib.ContextDecorator):
