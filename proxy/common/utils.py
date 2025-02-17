@@ -52,7 +52,7 @@ def cert_der_to_dict(der: Optional[bytes]) -> Dict[str, Any]:
         cert_file.flush()
         cert_file.seek(0)
     try:
-        certificate = _ssl._test_decode_cert(cert_file.name)  # type: ignore[attr-defined]
+        certificate = _ssl._test_decode_cert(cert_file.name)
     finally:
         cert_file.close()
         os.remove(cert_file.name)
