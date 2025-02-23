@@ -1725,7 +1725,7 @@ In embedded mode, you can access this port.  Example:
 import proxy
 
 if __name__ == '__main__':
-  with proxy.Proxy() as p:
+  with proxy.Proxy(port=0) as p:
     print(p.flags.port)
     proxy.sleep_loop()
 ```
