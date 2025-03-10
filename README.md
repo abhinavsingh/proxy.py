@@ -2534,7 +2534,7 @@ Plugin class instances are created per-request.  Most importantly,
 plugin instances are created within CPU core context where the request
 was received.
 
-For above reason, global variables in your plugins may work as expected.
+For above reason, global variables in your plugins may not work as expected.
 Your plugin code by design must be **stateless**.
 
 To manage global states, you have a couple of options:
