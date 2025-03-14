@@ -2639,8 +2639,8 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-key-file CA_KEY_FILE] [--insecure-tls-interception]
           [--ca-cert-dir CA_CERT_DIR] [--ca-cert-file CA_CERT_FILE]
           [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
-          [--auth-plugin AUTH_PLUGIN] [--cache-requests]
-          [--cache-by-content-type] [--cache-dir CACHE_DIR]
+          [--auth-plugin AUTH_PLUGIN] [--always-call-handle-client-data]
+          [--cache-requests] [--cache-by-content-type] [--cache-dir CACHE_DIR]
           [--proxy-pool PROXY_POOL] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
@@ -2653,7 +2653,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.8.dev8+gc703edac.d20241013
+proxy.py v2.4.11.dev2+g40b701e.d20250314
 
 options:
   -h, --help            show this help message and exit
@@ -2792,10 +2792,11 @@ options:
                         Default: None. Signing certificate to use for signing
                         dynamically generated HTTPS certificates. If used,
                         must also pass --ca-key-file and --ca-signing-key-file
-  --ca-file CA_FILE     Default: /Users/abhinavsingh/Dev/proxy.py/.venv3122/li
-                        b/python3.12/site-packages/certifi/cacert.pem. Provide
-                        path to custom CA bundle for peer certificate
-                        verification
+  --ca-file CA_FILE     Default: /Volumes/Extreme SSD/git/daily/pipecat-cloud-
+                        integrated-keys-
+                        sidecar/proxy.py/venv/lib/python3.10/site-
+                        packages/certifi/cacert.pem. Provide path to custom CA
+                        bundle for peer certificate verification
   --ca-signing-key-file CA_SIGNING_KEY_FILE
                         Default: None. CA signing key to use for dynamic
                         generation of HTTPS certificates. If used, must also
@@ -2803,6 +2804,9 @@ options:
   --auth-plugin AUTH_PLUGIN
                         Default: proxy.http.proxy.auth.AuthPlugin. Auth plugin
                         to use instead of default basic auth plugin.
+  --always-call-handle-client-data
+                        Default: False. Always call plugin
+                        handle_client_data() even if upstream is established.
   --cache-requests      Default: False. Whether to also write request packets
                         in the cache file.
   --cache-by-content-type
@@ -2810,7 +2814,7 @@ options:
                         from responses. Extracted content type is written to
                         the cache directory e.g. video.mp4.
   --cache-dir CACHE_DIR
-                        Default: /Users/abhinavsingh/.proxy/cache. Flag only
+                        Default: /Users/mattsheppard/.proxy/cache. Flag only
                         applicable when cache plugin is used with on-disk
                         storage.
   --proxy-pool PROXY_POOL

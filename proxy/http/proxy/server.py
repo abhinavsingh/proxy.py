@@ -122,6 +122,13 @@ flags.add_argument(
     'Auth plugin to use instead of default basic auth plugin.',
 )
 
+flags.add_argument(
+    '--always-call-handle-client-data',
+    action='store_true',
+    default=False,
+    help='Default: False. Always call plugin handle_client_data() even if upstream is established.',
+)
+
 
 class HttpProxyPlugin(HttpProtocolHandlerPlugin):
     """HttpProtocolHandler plugin which implements HttpProxy specifications."""
@@ -415,13 +422,15 @@ class HttpProxyPlugin(HttpProtocolHandlerPlugin):
         #
         # We only call handle_client_data once original request has been
         # completely received
-        if not self.upstream:
+        if self.flags.always_call_handle_client_data or not self.upstream:
             for plugin in self.plugins.values():
-                o = plugin.handle_client_data(raw)
+                o: Optional[memoryview] = plugin.handle_client_data(raw)
                 if o is None:
                     return
                 raw = o
-        elif self.upstream and not self.upstream.closed:
+        # replaced elif with if to allow for --always-call-handle-client-data
+        # flag
+        if self.upstream and not self.upstream.closed:
             # For http proxy requests, handle pipeline case.
             # We also handle pipeline scenario for https proxy
             # requests is TLS interception is enabled.
