@@ -193,7 +193,7 @@ jobs:
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
         }}.tar.gz')
-        print('::set-output name=wheel::proxy.py-${{
+        print('::set-output name=wheel::proxy_py-${{
             steps.request-check.outputs.release-requested == 'true'
             && github.event.inputs.release-version
             || steps.scm-version.outputs.dist-version
