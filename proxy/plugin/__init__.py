@@ -35,6 +35,7 @@ from .modify_chunk_response import ModifyChunkResponsePlugin
 from .modify_request_header import ModifyRequestHeaderPlugin
 from .redirect_to_custom_server import RedirectToCustomServerPlugin
 from .tls_intercept_conditionally import TlsInterceptConditionallyPlugin
+from .whitelist_upstream_hosts import WhitelistUpstreamHostsPlugin
 
 
 __all__ = [
@@ -57,4 +58,5 @@ __all__ = [
     'ProgramNamePlugin',
     'ModifyRequestHeaderPlugin',
     'TlsInterceptConditionallyPlugin',
+    'WhitelistUpstreamHostsPlugin',
 ]

@@ -7,6 +7,9 @@
 
     :copyright: (c) 2013-present by Abhinav Singh and contributors.
     :license: BSD, see LICENSE for more details.
+
+    Whitelist Plugin modified from (broken) filter_by_upstream plugin by Mike Jones dr.mike.jones@gmail.com
+
 """
 from typing import Optional
 
@@ -17,24 +20,22 @@ from ..http.parser import HttpParser
 from ..common.utils import text_
 from ..http.exception import HttpRequestRejected
 
-
 flags.add_argument(
-    '--filtered-upstream-hosts',
+    '--whitelist-upstream-hosts',
     type=str,
-    default='facebook.com,www.facebook.com',
-    help='Default: Blocks Facebook.  Comma separated list of fully qualified domain names, e.g. "facebook.com,www.facebook.com".',
+    default='datasets.datalad.org,singularity-hub.org,galaxy-dev.mcfe.itservices.manchester.ac.uk',
+    help='Default: Allows Singularity and Datasets.  Comma separated list of domains.',
 )
 
 
-class FilterByUpstreamHostPlugin(HttpProxyBasePlugin):
+class WhitelistUpstreamHostsPlugin(HttpProxyBasePlugin):
     """Drop traffic by inspecting upstream host."""
-
     def before_upstream_connection(
             self, request: HttpParser,
     ) -> Optional[HttpParser]:
-        if request.host.decode() in self.flags.filtered_upstream_hosts.split(','):
+        if not request.host.decode() in self.flags.whitelist_upstream_hosts.split(','):
             raise HttpRequestRejected(
                 status_code=httpStatusCodes.I_AM_A_TEAPOT,
-                reason=b'I\'m a tea pot',
+                reason=b'I\'m a tea pot cannot conect to '+request.host,
             )
         return request

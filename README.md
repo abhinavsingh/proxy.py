@@ -53,6 +53,7 @@
     - [Mock Api Plugin](#mockrestapiplugin)
     - [Redirect To Custom Server Plugin](#redirecttocustomserverplugin)
     - [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
+    - [Whitelist_Upstream_Hosts_Plugin](#whitelistupstreamhostplugin)
     - [Cache Responses Plugin](#cacheresponsesplugin)
     - [Cache By Response Type](#cachebyresponsetype)
     - [Man-In-The-Middle Plugin](#maninthemiddleplugin)
@@ -729,6 +730,12 @@ Traceback (most recent call last):
 ... [redacted] ...
 ... [redacted] ... - access_log:1157 - ::1:49911 - GET None:None/ - None None - 0 bytes
 ```
+### WhitelistUpstreamHostPlugin
+
+Essentially the same as [Filter By Upstream Host Plugin](#filterbyupstreamhostplugin)
+except the list of hosts are whitelisted, all others are dropped as being tea-pots that don't serve coffee.
+
+Can take a comma-separated (no-space) list of domains to construct whitelist. Otherwise The whitelist defaults to datasets.datalad.org,singularity-hub.org (because the author needed singularity to run on workernodes in an HPC setting with no NAT to the outside world). 
 
 ### CacheResponsesPlugin
 
