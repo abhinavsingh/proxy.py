@@ -3,6 +3,6 @@ aiohttp==3.10.3
 # and pyyaml>5.3.1 is broken for cython 3
 # See https://github.com/yaml/pyyaml/issues/724#issuecomment-1638587228
 # blacksheep==2.0.7
-starlette==0.38.5
+starlette==0.40.0
 tornado==6.4.1
 uvicorn==0.30.6
