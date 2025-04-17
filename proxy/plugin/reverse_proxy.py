@@ -45,7 +45,10 @@ class ReverseProxyPlugin(ReverseProxyBasePlugin):
             # A static route
             (
                 r'/get$',
-                [b'http://httpbingo.org/get', b'https://httpbingo.org/get'],
+                [
+                    b'http://httpbingo.org/get',
+                    b'https://httpbingo.org/get',
+                ],
             ),
             # A dynamic route to catch requests on "/get/<int>""
             # See "handle_route" method below for what we do when

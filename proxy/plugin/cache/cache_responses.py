@@ -23,7 +23,8 @@ from ...common.constants import SLASH
 
 br_installed = False
 try:
-    import brotli
+    import brotli  # type: ignore[import-untyped]
+
     br_installed = True
 except ModuleNotFoundError:
     pass

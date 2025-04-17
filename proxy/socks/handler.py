@@ -25,4 +25,4 @@ class SocksProtocolHandler(BaseTcpServerHandler[SocksClientConnection]):
         return SocksClientConnection(*args)     # pragma: no cover
 
     def handle_data(self, data: memoryview) -> Optional[bool]:
-        return super().handle_data(data)    # pragma: no cover
+        pass  # pragma: no cover

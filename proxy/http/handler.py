@@ -70,8 +70,10 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             )
 
     def is_inactive(self) -> bool:
-        if not self.work.has_buffer() and \
-                self._connection_inactive_for() > self.flags.timeout:
+        if (
+            not self.work.has_buffer()
+            and self._connection_inactive_for() > self.flags.timeout
+        ):
             return True
         return False
 
@@ -87,8 +89,8 @@ class HttpProtocolHandler(BaseTcpServerHandler[HttpClientConnection]):
             if self.plugin:
                 self.plugin.on_client_connection_close()
             logger.debug(
-                'Closing client connection %s has buffer %s' %
-                (self.work.address, self.work.has_buffer()),
+                'Closing client connection %s has buffer %s'
+                % (self.work.address, self.work.has_buffer()),
             )
             conn = self.work.connection
             # Unwrap if wrapped before shutdown.

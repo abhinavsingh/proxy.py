@@ -111,6 +111,9 @@ class BaseTcpServerHandler(Work[T]):
        a. handle_data(data: memoryview) implementation
        b. Optionally, also implement other Work method
           e.g. initialize, is_inactive, shutdown
+       c. Optionally, override has_buffer method to avoid
+          shutting down the connection unless additional
+          buffers are also cleared up.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -135,6 +138,24 @@ class BaseTcpServerHandler(Work[T]):
         """Optionally return True to close client connection."""
         pass    # pragma: no cover
 
+    def has_external_buffer(self) -> bool:
+        """BaseTcpServerHandler makes sure that Work.buffers are flushed before shutting down.
+
+        Example, HttpProtocolHandler uses BaseTcpServerHandler with TcpClientConnection as the
+        Work class.  So, automagically, BaseTcpServerHandler implementation makes sure that
+        pending TcpClientConnection buffers are flushed to the clients before tearing down
+        the connection.
+
+        But, imagine reverse proxy scenario where ReverseProxy has also opened an upstream
+        TcpServerConnection object.  ReverseProxy would also want any pending buffer for
+        upstream to flush out before tearing down the connection.   For such scenarios,
+        you must override the has_buffer to incorporate upstream buffers in the logic.
+        """
+        return False
+
+    def has_buffer(self) -> bool:
+        return self.work.has_buffer() or self.has_external_buffer()
+
     async def get_events(self) -> SelectableEvents:
         events = {}
         # We always want to read from client
@@ -143,7 +164,7 @@ class BaseTcpServerHandler(Work[T]):
             events[self.work.connection.fileno()] = selectors.EVENT_READ
         # If there is pending buffer for client
         # also register for EVENT_WRITE events
-        if self.work.has_buffer():
+        if self.has_buffer():
             if self.work.connection.fileno() in events:
                 events[self.work.connection.fileno()] |= selectors.EVENT_WRITE
             else:
@@ -174,8 +195,7 @@ class BaseTcpServerHandler(Work[T]):
                 'Flushing buffer to client {0}'.format(self.work.address),
             )
             self.work.flush(self.flags.max_sendbuf_size)
-            if self.must_flush_before_shutdown is True and \
-                    not self.work.has_buffer():
+            if self.must_flush_before_shutdown is True and not self.has_buffer():
                 teardown = True
                 self.must_flush_before_shutdown = False
         return teardown
@@ -214,7 +234,7 @@ class BaseTcpServerHandler(Work[T]):
                             self.work.address,
                         ),
                     )
-                    if self.work.has_buffer():
+                    if self.has_buffer():
                         logger.debug(
                             'Client {0} has pending buffer, will be flushed before shutting down'.format(
                                 self.work.address,
