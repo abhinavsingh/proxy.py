@@ -7,7 +7,9 @@ Uses deep-translator library (Google Translate) - FREE!
 import sys
 import time
 from pathlib import Path
+
 from deep_translator import GoogleTranslator
+
 
 # All supported languages
 LANGUAGES = {
@@ -35,29 +37,29 @@ LANGUAGES = {
 
 def show_languages():
     """Display all available languages"""
-    print("=" * 70)
-    print("Clean Code TypeScript - Automated Translation")
-    print("Using Google Translate (FREE!)")
-    print("=" * 70)
-    print("\nSelect target language:\n")
-    
+    print('=' * 70)
+    print('Clean Code TypeScript - Automated Translation')
+    print('Using Google Translate (FREE!)')
+    print('=' * 70)
+    print('\nSelect target language:\n')
+
     for key, lang in sorted(LANGUAGES.items(), key=lambda x: int(x[0])):
         print(f"  {key:2}. {lang['name']}")
-    
+
     print("\nEnter choice (1-20) or 'all' for all languages: ", end='')
 
 def select_language():
     """Interactive language selection"""
     show_languages()
     choice = input().strip().lower()
-    
+
     if choice == 'all':
         return 'all'
-    
+
     if choice not in LANGUAGES:
-        print("❌ Invalid choice!")
+        print('❌ Invalid choice!')
         sys.exit(1)
-    
+
     return [LANGUAGES[choice]]
 
 def translate_text(text, target_lang_code, max_length=4500):
@@ -67,8 +69,8 @@ def translate_text(text, target_lang_code, max_length=4500):
         if len(text) > max_length:
             # Split into smaller chunks
             chunks = []
-            current = ""
-            
+            current = ''
+
             for line in text.split('\n'):
                 if len(current) + len(line) < max_length:
                     current += line + '\n'
@@ -76,10 +78,10 @@ def translate_text(text, target_lang_code, max_length=4500):
                     if current:
                         chunks.append(current)
                     current = line + '\n'
-            
+
             if current:
                 chunks.append(current)
-            
+
             # Translate each chunk
             translated_chunks = []
             for chunk in chunks:
@@ -87,12 +89,12 @@ def translate_text(text, target_lang_code, max_length=4500):
                 translated = translator.translate(chunk)
                 translated_chunks.append(translated)
                 time.sleep(0.5)  # Rate limiting
-            
+
             return '\n'.join(translated_chunks)
         else:
             translator = GoogleTranslator(source='en', target=target_lang_code)
             return translator.translate(text)
-    
+
     except Exception as e:
         print(f"\n❌ Translation error: {e}")
         return None
@@ -102,28 +104,28 @@ def translate_readme(lang_config):
     print(f"\n{'='*70}")
     print(f"Translating to {lang_config['name']}...")
     print('='*70)
-    
+
     # Read README
     readme_path = Path('README.md')
     if not readme_path.exists():
-        print("❌ README.md not found!")
+        print('❌ README.md not found!')
         return False
-    
+
     with open(readme_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     print(f"\n📄 Original: {len(content)} characters")
-    
+
     # Split into manageable chunks (preserve code blocks)
     chunks = []
-    current_chunk = ""
+    current_chunk = ''
     in_code_block = False
-    
+
     for line in content.split('\n'):
         # Detect code blocks
         if line.strip().startswith('```'):
             in_code_block = not in_code_block
-        
+
         # If in code block or chunk is small enough, add line
         if in_code_block or len(current_chunk) + len(line) < 4000:
             current_chunk += line + '\n'
@@ -131,41 +133,41 @@ def translate_readme(lang_config):
             if current_chunk:
                 chunks.append(current_chunk)
             current_chunk = line + '\n'
-    
+
     if current_chunk:
         chunks.append(current_chunk)
-    
+
     print(f"📦 Split into {len(chunks)} chunks")
     print(f"\n🔄 Translating...\n")
-    
+
     # Translate each chunk
     translated_chunks = []
-    
+
     for i, chunk in enumerate(chunks, 1):
         print(f"[{i}/{len(chunks)}] Chunk {i}... ", end='', flush=True)
-        
+
         translated = translate_text(chunk, lang_config['code'])
-        
+
         if translated:
             translated_chunks.append(translated)
             print(f"✅")
         else:
-            print("❌ Failed!")
+            print('❌ Failed!')
             return False
-        
+
         time.sleep(1)  # Rate limiting
-    
+
     # Combine
     final_translation = '\n'.join(translated_chunks)
-    
+
     # Save
     output_path = Path(lang_config['file'])
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(final_translation)
-    
+
     print(f"\n✅ Saved to {output_path}")
     print(f"📊 Size: {len(final_translation)} characters")
-    
+
     return True
 
 def main():
@@ -173,45 +175,45 @@ def main():
     try:
         from deep_translator import GoogleTranslator
     except ImportError:
-        print("❌ deep-translator not installed!")
-        print("📦 Install with: pip install deep-translator")
+        print('❌ deep-translator not installed!')
+        print('📦 Install with: pip install deep-translator')
         sys.exit(1)
-    
+
     # Select language(s)
     selection = select_language()
-    
+
     if selection == 'all':
         print(f"\n✨ Translating to ALL {len(LANGUAGES)} languages!")
-        print("⚠️  This will take a while...\n")
-        
-        print("Proceed? (y/n): ", end='')
+        print('⚠️  This will take a while...\n')
+
+        print('Proceed? (y/n): ', end='')
         if input().strip().lower() != 'y':
-            print("❌ Cancelled")
+            print('❌ Cancelled')
             sys.exit(0)
-        
+
         languages_to_translate = list(LANGUAGES.values())
     else:
         languages_to_translate = selection
         print(f"\n✨ Selected: {languages_to_translate[0]['name']}")
         print(f"📁 Output: {languages_to_translate[0]['file']}\n")
-        
-        print("Proceed? (y/n): ", end='')
+
+        print('Proceed? (y/n): ', end='')
         if input().strip().lower() != 'y':
-            print("❌ Cancelled")
+            print('❌ Cancelled')
             sys.exit(0)
-    
+
     # Translate
     success_count = 0
     for lang_config in languages_to_translate:
         if translate_readme(lang_config):
             success_count += 1
         print()
-    
+
     # Summary
-    print("=" * 70)
+    print('=' * 70)
     print(f"✅ Completed: {success_count}/{len(languages_to_translate)} translations")
-    print("=" * 70)
-    
+    print('=' * 70)
+
     if success_count > 0:
         print(f"\n💡 Next steps:")
         print(f"   1. Review translated files")
@@ -219,5 +221,5 @@ def main():
         print(f"   3. git commit -m 'Add translations - Fixes #15'")
         print(f"   4. Create PR")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
