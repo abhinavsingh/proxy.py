@@ -61,9 +61,9 @@ flags.add_argument(
 )
 
 flags.add_argument(
-    '--forward-all', 
+    '--forward-all',
     action='store_true',
-    help='Forward all requests to the proxy, including private IP requests'
+    help='Forward all requests to the proxy, including private IP requests',
 )
 
 class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
