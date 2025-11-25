@@ -60,6 +60,11 @@ flags.add_argument(
     help='List of upstream proxies to use in the pool',
 )
 
+flags.add_argument(
+    '--forward-all', 
+    action='store_true',
+    help='Forward all requests to the proxy, including private IP requests'
+)
 
 class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
     """Proxy pool plugin simply acts as a proxy adapter for proxy.py itself.
@@ -93,10 +98,12 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         """
         # We don't want to send private IP requests to remote proxies
         try:
-            if ipaddress.ip_address(text_(request.host)).is_private:
+            if ipaddress.ip_address(text_(request.host)).is_private and not self.flags.forward_all:
                 return request
         except ValueError:
             pass
+        except Exception as e:
+            logger.error(f"Unexpected error happened before upstream connection: {e}")
         # If chosen proxy is the local instance, bypass upstream proxies
         assert self._endpoint.port and self._endpoint.hostname
         if self._endpoint.port == self.flags.port and \
