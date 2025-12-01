@@ -2641,7 +2641,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--ca-file CA_FILE] [--ca-signing-key-file CA_SIGNING_KEY_FILE]
           [--auth-plugin AUTH_PLUGIN] [--cache-requests]
           [--cache-by-content-type] [--cache-dir CACHE_DIR]
-          [--proxy-pool PROXY_POOL] [--enable-web-server]
+          [--proxy-pool PROXY_POOL] [--forward-all] [--enable-web-server]
           [--enable-static-server] [--static-server-dir STATIC_SERVER_DIR]
           [--min-compression-length MIN_COMPRESSION_LENGTH]
           [--enable-reverse-proxy] [--rewrite-host-header] [--enable-metrics]
@@ -2653,7 +2653,7 @@ usage: -m [-h] [--tunnel-hostname TUNNEL_HOSTNAME] [--tunnel-port TUNNEL_PORT]
           [--filtered-client-ips FILTERED_CLIENT_IPS]
           [--filtered-url-regex-config FILTERED_URL_REGEX_CONFIG]
 
-proxy.py v2.4.8.dev8+gc703edac.d20241013
+proxy.py v0.1.dev946+gfec682b.d20251125
 
 options:
   -h, --help            show this help message and exit
@@ -2815,6 +2815,8 @@ options:
                         storage.
   --proxy-pool PROXY_POOL
                         List of upstream proxies to use in the pool
+  --forward-all         Default: False. Forwards all requests to the
+                        remote proxy.
   --enable-web-server   Default: False. Whether to enable
                         proxy.HttpWebServerPlugin.
   --enable-static-server
