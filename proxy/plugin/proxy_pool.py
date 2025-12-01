@@ -103,7 +103,7 @@ class ProxyPoolPlugin(TcpUpstreamConnectionHandler, HttpProxyBasePlugin):
         except ValueError:
             pass
         except Exception as e:
-            logger.error(f"Unexpected error happened before upstream connection: {e}")
+            logger.error("Unexpected error happened before upstream connection: %s", e)
         # If chosen proxy is the local instance, bypass upstream proxies
         assert self._endpoint.port and self._endpoint.hostname
         if self._endpoint.port == self.flags.port and \
