@@ -394,8 +394,9 @@ class Threadless(ABC, Generic[T]):
             work_id = task._work_id     # type: ignore
             try:
                 teardown = task.result()
-            except Exception:
+            except Exception as e:
                 teardown = True
+                logger.warning('An error occurred (this may be expected): ' + str(e))
             finally:
                 if teardown:
                     self._cleanup(work_id)
