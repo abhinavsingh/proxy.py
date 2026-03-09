@@ -16,8 +16,8 @@ from unittest import mock
 from proxy.common.types import TcpOrTlsSocket
 from proxy.core.connection import (
     TcpConnection, TcpClientConnection, TcpServerConnection,
-    TcpConnectionUninitializedException, tcpConnectionTypes,
-    Socks5ServerConnection,
+    Socks5ServerConnection, TcpConnectionUninitializedException,
+    tcpConnectionTypes,
 )
 from proxy.common.constants import (
     DEFAULT_PORT, DEFAULT_IPV4_HOSTNAME, DEFAULT_IPV6_HOSTNAME,

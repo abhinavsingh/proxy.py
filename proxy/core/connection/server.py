@@ -9,16 +9,19 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
-import logging
 import socket
-import socks
+import logging
 from typing import Optional
+
+import socks
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.types import HostPort, TcpOrTlsSocket
 from ...common.utils import new_socket_connection
-from ...common.constants import DEFAULT_SSL_CONTEXT_OPTIONS, DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE
+from ...common.constants import (
+    DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE, DEFAULT_SSL_CONTEXT_OPTIONS,
+)
 
 
 logger = logging.getLogger(__name__)
