@@ -9,14 +9,22 @@
     :license: BSD, see LICENSE for more details.
 """
 import ssl
+import socket
+import logging
 from typing import Optional
+
+import socks
 
 from .types import tcpConnectionTypes
 from .connection import TcpConnection, TcpConnectionUninitializedException
 from ...common.types import HostPort, TcpOrTlsSocket
 from ...common.utils import new_socket_connection
-from ...common.constants import DEFAULT_SSL_CONTEXT_OPTIONS
+from ...common.constants import (
+    DEFAULT_BUFFER_SIZE, DEFAULT_MAX_SEND_SIZE, DEFAULT_SSL_CONTEXT_OPTIONS,
+)
 
+
+logger = logging.getLogger(__name__)
 
 class TcpServerConnection(TcpConnection):
     """A buffered server connection object."""
@@ -66,3 +74,58 @@ class TcpServerConnection(TcpConnection):
         )
         if as_non_blocking:
             self.connection.setblocking(False)
+
+class Socks5ServerConnection(TcpConnection):
+    """A buffered SOCKS5 upstream connection object."""
+
+    def __init__(
+            self,
+            host: str,
+            port: int,
+            username: Optional[str] = None,
+            password: Optional[str] = None,
+    ) -> None:
+        super().__init__(tcpConnectionTypes.SERVER)
+        self._conn: Optional[TcpOrTlsSocket] = None
+        self.addr: HostPort = (host, port, username, password)
+        self.closed = True
+
+    @property
+    def connection(self) -> TcpOrTlsSocket:
+        if self._conn is None:
+            raise TcpConnectionUninitializedException()
+        return self._conn
+
+    def connect(
+            self,
+            addr: Optional[HostPort] = None,
+            source_address: Optional[HostPort] = None,
+    ) -> None:
+        assert self._conn is None
+
+        sock = socks.socksocket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.set_proxy(
+            proxy_type=socks.SOCKS5,
+            addr=self.addr[0],
+            port=self.addr[1],
+            username=self.addr[2] if len(self.addr) > 2 else None,
+            password=self.addr[3] if len(self.addr) > 3 else None,
+        )
+        sock.connect(addr)
+        sock.setblocking(False)
+
+        self._conn = sock
+        self.closed = False
+
+    def recv(
+            self,
+            buffer_size: int = DEFAULT_BUFFER_SIZE,
+    ) -> Optional[memoryview]:
+        try:
+            data: bytes = self._conn.recv(buffer_size)
+        except BlockingIOError:
+            return memoryview(b'')
+        if len(data) == 0:
+            return None
+        logger.debug('received %d bytes from server', len(data))
+        return memoryview(data)

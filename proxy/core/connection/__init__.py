@@ -16,7 +16,7 @@
 from .pool import UpstreamConnectionPool
 from .types import tcpConnectionTypes
 from .client import TcpClientConnection
-from .server import TcpServerConnection
+from .server import TcpServerConnection, Socks5ServerConnection
 from .connection import TcpConnection, TcpConnectionUninitializedException
 
 
@@ -24,6 +24,7 @@ __all__ = [
     'TcpConnection',
     'TcpConnectionUninitializedException',
     'TcpServerConnection',
+    'Socks5ServerConnection',
     'TcpClientConnection',
     'tcpConnectionTypes',
     'UpstreamConnectionPool',
