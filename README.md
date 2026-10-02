@@ -8,9 +8,12 @@
 [![Gitter](https://img.shields.io/gitter/room/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://gitter.im/proxy-py/community)
 [![License](https://img.shields.io/github/license/abhinavsingh/proxy.py?style=for-the-badge&color=darkgreen)](https://github.com/abhinavsingh/proxy.py/blob/develop/LICENSE)
 
-[![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
-[![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
-[![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)](https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/)
+[![Tested With MacOS, Ubuntu, Windows, Android, Android Emulator, iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=mac%20OS%20%F0%9F%92%BB%20%7C%20Ubuntu%20%F0%9F%96%A5%20%7C%20Windows%20%F0%9F%92%BB&color=darkgreen&style=for-the-badge)][archived intro blog post in wayback machine]
+[![Android, Android Emulator](https://img.shields.io/static/v1?label=tested%20with&message=Android%20%F0%9F%93%B1%20%7C%20Android%20Emulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)][archived intro blog post in wayback machine]
+[![iOS, iOS Simulator](https://img.shields.io/static/v1?label=tested%20with&message=iOS%20%F0%9F%93%B1%20%7C%20iOS%20Simulator%20%F0%9F%93%B1&color=darkgreen&style=for-the-badge)][archived intro blog post in wayback machine]
+
+[archived intro blog post in wayback machine]:
+https://web.archive.org/web/20211030021322/https://abhinavsingh.com/proxy-py-a-lightweight-single-file-http-proxy-server-in-python/
 
 [![pypi version](https://img.shields.io/pypi/v/proxy.py?style=flat-square)](https://pypi.org/project/proxy.py/)
 [![Python 3.x](https://img.shields.io/static/v1?label=Python&message=3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12&color=blue&style=flat-square)](https://www.python.org/)
