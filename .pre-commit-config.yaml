@@ -142,12 +142,14 @@ repos:
   - id: flake8
     language_version: python3.10
     additional_dependencies:
-    # NOTE: `wemake-python-styleguide` pulls in `flake8-rst-docstrings`.
+    # NOTE: `wemake-python-styleguide` caps `flake8-rst-docstrings` below 0.3.
     # NOTE: docutils 0.22.1 lowered section title messages from SEVERE to
-    # NOTE: ERROR, so the shared module docstring header, ignored in
-    # NOTE: `.flake8` as RST499, is reported as RST399 instead. Ignoring
-    # NOTE: RST399 as well would also hide errors that are RST401 today.
-    # NOTE: Drop the pin once that header is valid reST.
+    # NOTE: ERROR, and that plugin series reports them as RST399, its
+    # NOTE: catch-all for unmapped errors. That covers the shared module
+    # NOTE: docstring header, ignored in `.flake8` as RST499, but also
+    # NOTE: "Unexpected section title.", which is RST401 today, so ignoring
+    # NOTE: RST399 would hide the latter. Drop the pin once that header is
+    # NOTE: valid reST.
     - docutils < 0.22.1
     - flake8-2020 >= 1.6.0
     - flake8-docstrings >= 1.5.0
