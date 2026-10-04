@@ -151,6 +151,12 @@ repos:
   rev: v0.910
   hooks:
   - id: mypy
+    # NOTE: MyPy 0.910 imports `ast.Str` and other names that Python 3.14
+    # NOTE: removed, and reports that failed import as `typed_ast` not being
+    # NOTE: installed. pre-commit.ci builds hook environments with 3.14, so
+    # NOTE: run this hook on 3.10, like the Flake8 one. Drop the pin once the
+    # NOTE: hook uses a MyPy release that supports Python 3.14.
+    language_version: python3.10
     additional_dependencies:
     - paramiko == 2.11.0
     - types-paramiko == 2.7.3
