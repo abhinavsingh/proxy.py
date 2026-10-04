@@ -142,9 +142,22 @@ repos:
   - id: flake8
     language_version: python3.10
     additional_dependencies:
+    # NOTE: `wemake-python-styleguide` pulls in `flake8-rst-docstrings`.
+    # NOTE: docutils 0.22.1 lowered section title messages from SEVERE to
+    # NOTE: ERROR, so the shared module docstring header, ignored in
+    # NOTE: `.flake8` as RST499, is reported as RST399 instead. Ignoring
+    # NOTE: RST399 as well would also hide errors that are RST401 today.
+    # NOTE: Drop the pin once that header is valid reST.
+    - docutils < 0.22.1
     - flake8-2020 >= 1.6.0
     - flake8-docstrings >= 1.5.0
     - flake8-pytest-style >= 1.2.2
+    # NOTE: `wemake-python-styleguide` pins `flake8-commas < 3` and that 2.x
+    # NOTE: series imports `pkg_resources`, which setuptools 82 removed.
+    # NOTE: Without a setuptools that still ships it, Flake8 cannot load the
+    # NOTE: plugin at all. Drop the pin once WPS allows a `flake8-commas`
+    # NOTE: release that no longer needs `pkg_resources`.
+    - setuptools < 82
     - wemake-python-styleguide >= 0.16.1
 
 - repo: https://github.com/pre-commit/mirrors-mypy.git
