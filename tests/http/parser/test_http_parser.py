@@ -734,6 +734,20 @@ class TestHttpParser(unittest.TestCase):
         )
         self.assertTrue(self.parser.is_http_1_1_keep_alive)
 
+    def test_connection_options_without_close_keep_alive(self) -> None:
+        for value in (b'keep-alive, Upgrade', b'X-Custom'):
+            with self.subTest(value=value):
+                parser = HttpParser.request(build_http_request(
+                    httpMethods.GET, b'/', headers={b'Connection': value},
+                ))
+                self.assertTrue(parser.is_http_1_1_keep_alive)
+
+    def test_close_option_overrides_keep_alive(self) -> None:
+        parser = HttpParser.request(build_http_request(
+            httpMethods.GET, b'/', headers={b'Connection': b'keep-alive, CLOSE'},
+        ))
+        self.assertFalse(parser.is_http_1_1_keep_alive)
+
     def test_is_not_http_1_1_keep_alive_with_close_header(self) -> None:
         self.parser.parse(
             memoryview(
