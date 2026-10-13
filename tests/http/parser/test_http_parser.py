@@ -18,13 +18,27 @@ from proxy.common.utils import (
 from proxy.http.exception import HttpProtocolException
 from proxy.http.protocols import httpProtocols
 from proxy.http.responses import okResponse
-from proxy.common.constants import CRLF, HTTP_1_0
+from proxy.common.constants import CRLF, HTTP_1_0, PROXY_AGENT_HEADER_VALUE
 
 
 class TestHttpParser(unittest.TestCase):
 
     def setUp(self) -> None:
         self.parser = HttpParser(httpParserTypes.REQUEST_PARSER)
+
+    def test_absolute_request_replaces_host_header(self) -> None:
+        self.parser.parse(memoryview(
+            b'GET http://upstream.example:8080/path HTTP/1.1\r\n'
+            b'Host: wrong.example\r\n\r\n',
+        ))
+        self.assertIn(b'Host: upstream.example:8080\r\n', self.parser.build())
+        self.assertNotIn(b'wrong.example', self.parser.build())
+
+    def test_absolute_request_adds_missing_host_header(self) -> None:
+        self.parser.parse(memoryview(
+            b'GET http://upstream.example/path HTTP/1.1\r\n\r\n',
+        ))
+        self.assertIn(b'Host: upstream.example\r\n', self.parser.build())
 
     def test_issue_127(self) -> None:
         with self.assertRaises(HttpProtocolException):
@@ -706,6 +720,8 @@ class TestHttpParser(unittest.TestCase):
                 headers={
                     b'Transfer-Encoding': b'chunked',
                     b'Content-Type': b'application/json',
+                    b'User-Agent': PROXY_AGENT_HEADER_VALUE,
+                    b'Host': b'example.org',
                 },
                 body=b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
             ),

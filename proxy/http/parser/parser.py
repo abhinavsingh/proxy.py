@@ -305,23 +305,26 @@ class HttpParser:
                 str(self.port).encode() +
                 path
             ) if not self._is_https_tunnel else (self.host + COLON + str(self.port).encode())
+        if host is None and self._url and self._url.hostname and not self._is_https_tunnel:
+            host = self._url.hostname
+            if self._url.port is not None:
+                host += COLON + bytes_(self._url.port)
+        headers = {} if not self.headers else {
+            self.headers[k][0]: (
+                self.headers[k][1]
+                if host is None or self.headers[k][0].lower() != b'host'
+                else host
+            )
+            for k in self.headers
+            if k.lower() not in disable_headers
+        }
+        if host is not None and not self.has_header(b'host') and b'host' not in disable_headers:
+            headers[b'Host'] = host
         return build_http_request(
             self.method,
             path,
             self.version,
-            headers=(
-                {}
-                if not self.headers
-                else {
-                    self.headers[k][0]: (
-                        self.headers[k][1]
-                        if host is None or self.headers[k][0].lower() != b'host'
-                        else host
-                    )
-                    for k in self.headers
-                    if k.lower() not in disable_headers
-                }
-            ),
+            headers=headers,
             body=body,
             no_ua=True,
         )
