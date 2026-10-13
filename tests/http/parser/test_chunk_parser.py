@@ -94,6 +94,13 @@ class TestChunkParser(unittest.TestCase):
         self.assertEqual(self.parser.body, b'abcdefg')
         self.assertEqual(self.parser.state, chunkParserStates.COMPLETE)
 
+    def test_chunk_extensions(self) -> None:
+        self.parser.parse(memoryview(
+            b'4;name=value\r\nWiki\r\n0;done=yes\r\n\r\n',
+        ))
+        self.assertEqual(self.parser.body, b'Wiki')
+        self.assertEqual(self.parser.state, chunkParserStates.COMPLETE)
+
     def test_to_chunks(self) -> None:
         self.assertEqual(
             b'f\r\n{"key":"value"}\r\n0\r\n\r\n',
