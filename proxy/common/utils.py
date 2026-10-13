@@ -255,6 +255,8 @@ def new_socket_connection(
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
     source_address: Optional[HostPort] = None,
 ) -> socket.socket:
+    if addr[0].startswith('[') and addr[0].endswith(']'):
+        addr = (addr[0][1:-1], addr[1])
     conn = None
     try:
         ip = ipaddress.ip_address(addr[0])

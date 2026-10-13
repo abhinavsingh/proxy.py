@@ -43,6 +43,19 @@ class TestSocketConnectionUtils(unittest.TestCase):
             (self.addr_ipv6[0], self.addr_ipv6[1], 0, 0),
         )
 
+    def test_new_socket_connection_bracketed_ipv6(self) -> None:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as listener:
+            try:
+                listener.bind(('::1', 0))
+            except OSError as error:
+                self.skipTest(str(error))
+            listener.listen(1)
+            listener.settimeout(2)
+            with new_socket_connection(('[::1]', listener.getsockname()[1])) as client:
+                with listener.accept()[0] as server:
+                    server.sendall(b'x')
+                    self.assertEqual(client.recv(1), b'x')
+
     @mock.patch('socket.create_connection')
     def test_new_socket_connection_dual(self, mock_socket: mock.Mock) -> None:
         conn = new_socket_connection(self.addr_dual)
