@@ -206,7 +206,9 @@ class HttpParser:
         return self.version == HTTP_1_1 and \
             (
                 not self.has_header(b'Connection') or
-                self.header(b'Connection').lower() == b'keep-alive'
+                b'close' not in [
+                    option.strip() for option in self.header(b'Connection').lower().split(b',')
+                ]
             )
 
     @property
