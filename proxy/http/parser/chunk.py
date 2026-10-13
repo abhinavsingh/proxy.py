@@ -53,7 +53,7 @@ class ChunkParser:
                 self.chunk = raw
                 raw = b''
             else:
-                self.size = int(line, 16)
+                self.size = int(line.split(b';', 1)[0], 16)
                 self.state = chunkParserStates.WAITING_FOR_DATA
         elif self.state == chunkParserStates.WAITING_FOR_DATA:
             assert self.size is not None
