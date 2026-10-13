@@ -263,12 +263,16 @@ def new_socket_connection(
                 socket.AF_INET, socket.SOCK_STREAM, 0,
             )
             conn.settimeout(connect_timeout)
+            if source_address is not None:
+                conn.bind(source_address)
             conn.connect(addr)
         else:
             conn = socket.socket(
                 socket.AF_INET6, socket.SOCK_STREAM, 0,
             )
             conn.settimeout(connect_timeout)
+            if source_address is not None:
+                conn.bind(source_address)
             conn.connect((addr[0], addr[1], 0, 0))
     except ValueError:
         pass    # does not appear to be an IPv4 or IPv6 address
