@@ -43,6 +43,21 @@ class TestSocketConnectionUtils(unittest.TestCase):
             (self.addr_ipv6[0], self.addr_ipv6[1], 0, 0),
         )
 
+    def test_literal_ip_honors_source_address(self) -> None:
+        with socket.socket() as listener:
+            listener.bind(('127.0.0.1', 0))
+            listener.listen(1)
+            listener.settimeout(2)
+            with socket.socket() as source:
+                source.bind(('127.0.0.1', 0))
+                source_address = source.getsockname()
+            with new_socket_connection(
+                listener.getsockname(), source_address=source_address,
+            ) as client:
+                self.assertEqual(client.getsockname(), source_address)
+                with listener.accept()[0] as server:
+                    self.assertEqual(server.getpeername(), source_address)
+
     @mock.patch('socket.create_connection')
     def test_new_socket_connection_dual(self, mock_socket: mock.Mock) -> None:
         conn = new_socket_connection(self.addr_dual)
